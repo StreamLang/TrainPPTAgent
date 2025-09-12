@@ -1,17 +1,16 @@
-import json
 import logging
-from typing import Dict, List, Any, AsyncGenerator, Optional, Union
-from google.genai import types
-from google.adk.agents.llm_agent import LlmAgent  # Renamed Agent to LlmAgent for clarity/convention
-from google.adk.agents import LoopAgent, BaseAgent  # Import LoopAgent and BaseAgent
-from google.adk.events import Event, EventActions
-from google.adk.agents.invocation_context import InvocationContext
+from typing import List, AsyncGenerator, Optional
+
+from google.adk.agents import LoopAgent  # Import LoopAgent and BaseAgent
 from google.adk.agents.callback_context import CallbackContext
+from google.adk.agents.invocation_context import InvocationContext
+from google.adk.agents.llm_agent import LlmAgent  # Renamed Agent to LlmAgent for clarity/convention
+from google.adk.events import Event, EventActions
 from google.adk.models import LlmRequest, LlmResponse
-from .tools import SearchImage, DocumentSearch
-from ...config import PPT_WRITER_AGENT_CONFIG,PPT_CHECKER_AGENT_CONFIG
-from ...create_model import create_model
+
 from . import prompt
+from ...config import PPT_WRITER_AGENT_CONFIG
+from ...create_model import create_model
 
 logger = logging.getLogger(__name__)
 def my_before_model_callback(callback_context: CallbackContext, llm_request: LlmRequest) -> Optional[LlmResponse]:
@@ -34,10 +33,9 @@ def my_after_model_callback(callback_context: CallbackContext, llm_response: Llm
         part_text = one_part.text
         if part_text is not None:
             part_texts.append(part_text)
-    part_text_content = "\n".join(part_texts)
-    metadata = callback_context.state.get("metadata")
-    print(f"调用了{agent_name}模型后的callback, 这次模型回复{response_parts}条信息,metadata数据为：{metadata},回复内容是: {part_text_content}")
-    logger.info(f"调用了{agent_name}模型后的callback, 这次模型回复{response_parts}条信息,metadata数据为：{metadata},回复内容是: {part_text_content}")
+    # part_text_content = "\n".join(part_texts)
+    # metadata = callback_context.state.get("metadata")
+    # logger.info(f"调用了{agent_name}模型后的callback, 这次模型回复{response_parts}条信息,metadata数据为：{metadata},回复内容是: {part_text_content}")
     #清空contents,不需要上一步的拆分topic的记录, 不能在这里清理，否则，每次调用工具都会清除记忆，白操作了
     # llm_request.contents.clear()
     # 返回 None，继续调用 LLM
@@ -86,7 +84,6 @@ class PPTWriterSubAgent(LlmAgent):
             after_agent_callback=my_after_agent_callback,
             before_model_callback=my_before_model_callback,
             after_model_callback=my_after_model_callback,
-            tools=[SearchImage, DocumentSearch],  # 注册SearchImage工具
             **kwargs
         )
 

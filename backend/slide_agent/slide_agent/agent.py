@@ -4,6 +4,7 @@ from google.genai import types  # 用于在回调里短路并给用户返回消�
 from dotenv import load_dotenv
 from .sub_agents.ppt_writer.agent import ppt_generator_loop_agent
 from .utils import parse_markdown_to_slides  # 复用你已有的解析函数
+import json
 
 # 在模块顶部加载环境变量
 load_dotenv('.env')
@@ -53,6 +54,14 @@ def before_agent_callback(callback_context: CallbackContext):
     language = metadata.get("language", "EN-US")
     state["language"] = language
 
+    # 获取用户提供的素材和内容
+    user_materials = metadata.get("materials", [])
+    user_sections = metadata.get("sections", [])
+    
+    # 将用户提供的内容存储到state中
+    state["user_materials"] = user_materials
+    state["user_sections"] = user_sections
+
     md_content = _get_markdown_from_context(callback_context)
     if not md_content or not _is_valid_outline(md_content):
         # 解析前的快速校验失败：直接告诉用户不合法并短路
@@ -61,7 +70,8 @@ def before_agent_callback(callback_context: CallbackContext):
             parts=[types.Part(text="markdown不合法：请提供包含 # / ## / ### 标题与条目的大纲")]
         )
     try:
-        slides = parse_markdown_to_slides(md_content)
+        # 解析Markdown时传入用户提供的章节内容
+        slides = parse_markdown_to_slides(md_content, user_sections)
     except Exception:
         # 真解析出异常：直接告诉用户不合法并短路
         return types.Content(

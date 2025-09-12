@@ -18,8 +18,10 @@ PPT_WRITER_AGENT_CONFIG = {
     # "provider": "deepseek",
     # "model": "deepseek-chat",
     # "model": "gpt-4o-2024-08-06",
-    "provider": "ali",
-    "model": "qwen-turbo-latest",
+    # "provider": "ali",
+    # "model": "qwen-turbo-latest",
+    "provider": "local_openai",
+    "model": "qwen3-235b",
 }
 # 检查每一页的PPT是否符合要求，不符合要求的会被重写
 PPT_CHECKER_AGENT_CONFIG = {
@@ -33,8 +35,10 @@ PPT_CHECKER_AGENT_CONFIG = {
     # "provider": "local_deepseek",
     # "model": "deepseek-chat",
     # "model": "gpt-4o-2024-08-06",
-    "provider": "ali",
-    "model": "qwen-turbo-latest",
+    # "provider": "ali",
+    # "model": "qwen-turbo-latest",
     # "provider": "deepseek",
     # "model": "deepseek-chat",
+    "provider": "local_openai",
+    "model": "qwen3-235b",
 }

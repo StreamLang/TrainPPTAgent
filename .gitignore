@@ -55,3 +55,6 @@ vendor/
 cache
 .env_dev
 .env_prod
+*.mdc
+**/*.mdc
+.codebuddy/

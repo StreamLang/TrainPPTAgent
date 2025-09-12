@@ -36,11 +36,13 @@
 </template>
 
 <script lang="ts" setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { storeToRefs } from 'pinia'
-import { useMainStore } from '@/store'
+import { useMainStore, useSlidesStore } from '@/store'
 import useGlobalHotkey from '@/hooks/useGlobalHotkey'
 import usePasteEvent from '@/hooks/usePasteEvent'
+import SessionManager from '@/utils/sessionManager'
 
 import EditorHeader from './EditorHeader/index.vue'
 import Canvas from './Canvas/index.vue'
@@ -58,11 +60,35 @@ import Modal from '@/components/Modal.vue'
 
 
 const mainStore = useMainStore()
+const slidesStore = useSlidesStore()
+const route = useRoute()
 const { dialogForExport, showSelectPanel, showSearchPanel, showNotesPanel, showSymbolPanel, showMarkupPanel, isGenerating } = storeToRefs(mainStore)
 
 const closeExportDialog = () => mainStore.setDialogForExport('')
 
 const remarkHeight = ref(40)
+
+// 恢复session数据
+const restoreSessionData = () => {
+  const sessionId = route.query.session_id as string
+  if (sessionId) {
+    const pptData = SessionManager.getPPTData(sessionId)
+    if (pptData) {
+      // 恢复幻灯片数据
+      slidesStore.setSlides(pptData.slides)
+      if (pptData.theme) {
+        slidesStore.setTheme(pptData.theme)
+      }
+      console.log('Session数据恢复成功，幻灯片数量:', pptData.slides.length)
+    } else {
+      console.warn('未找到对应的session数据，session_id:', sessionId)
+    }
+  }
+}
+
+onMounted(() => {
+  restoreSessionData()
+})
 
 useGlobalHotkey()
 usePasteEvent()

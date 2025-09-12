@@ -3,6 +3,7 @@ import time
 import asyncio
 from typing import Any
 from uuid import uuid4
+import json
 
 import httpx
 from a2a.client import A2ACardResolver, A2AClient
@@ -61,9 +62,10 @@ class A2AContentClientWrapper:
             except Exception as e:
                 self.logger.error(f'获取 AgentCard 失败: {e}', exc_info=True)
                 raise RuntimeError('无法获取 agent card，无法继续运行。') from e
-    async def generate(self, user_question: str, language="English", user_id="") -> None:
+    async def generate(self, user_question: str, metadata: str = "", language="English", user_id="") -> None:
         """
         user_question: 用户问题
+        metadata: 用户提供的额外信息（如素材和内容）
         history： 历史对话消息
         user_id:  用户的id
         执行一次对话流程
@@ -77,12 +79,26 @@ class A2AContentClientWrapper:
 
             # === 多轮对话 示例 ===
             self.logger.info("开始进行对话...")
+            
+            # 解析metadata
+            metadata_dict = {}
+            if metadata:
+                try:
+                    metadata_dict = json.loads(metadata)
+                except json.JSONDecodeError:
+                    self.logger.warning("无法解析metadata JSON")
+            
             message_data: dict[str, Any] = {
                 'message': {
                     'role': 'user',
                     'parts': [{'kind': 'text', 'text': user_question}],
                     'messageId': uuid4().hex,
-                    'metadata': {'language': language, "user_id": user_id},
+                    'metadata': {
+                        'language': language, 
+                        "user_id": user_id,
+                        "materials": metadata_dict.get("materials", []),
+                        "sections": metadata_dict.get("sections", [])
+                    },
                     'contextId': self.session_id,
                 },
             }
@@ -99,9 +115,15 @@ class A2AContentClientWrapper:
                 self.logger.info(f"输出的chunk内容: {chunk}")
                 chunk_data = chunk.model_dump(mode='json', exclude_none=True)
                 if "error" in chunk_data:
-                    self.logger.error(f"错误信息: {chunk_data['error']}")
-                    print(f"错误信息: {chunk_data['error']}")
-                    yield {"type": "final", "text": "对话结束"}
+                    error_message = chunk_data['error']
+                    self.logger.error(f"错误信息: {error_message}")
+                    print(f"错误信息: {error_message}")
+                    # 返回标准化的错误格式给前端
+                    yield {"type": "error", "text": json.dumps({
+                        "status": "error",
+                        "message": error_message,
+                        "code": "CONTENT_GENERATION_ERROR"
+                    })}
                     break
                 result = chunk_data["result"]
                 # 判断 chunk 类型

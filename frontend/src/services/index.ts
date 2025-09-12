@@ -16,6 +16,24 @@ interface AIPPTPayload {
   model: string
 }
 
+interface AIPPTContentPayload {
+  content: string
+  materials?: Array<{
+    id: string
+    name: string
+    description: string
+  }>
+  sections?: Array<{
+    id: string
+    title: string
+    fields: Array<{
+      title: string
+      content: string
+      materials: string[]
+    }>
+  }>
+}
+
 interface AIWritingPayload {
   content: string
   command: string
@@ -54,7 +72,9 @@ export default {
     language,
     style,
     model,
-  }: AIPPTPayload): Promise<any> {
+    materials,
+    sections
+  }: AIPPTContentPayload & { language: string; style: string; model: string }): Promise<any> {
     return fetch(`${SERVER_URL}/tools/aippt`, {
       method: 'POST',
       headers: {
@@ -66,8 +86,23 @@ export default {
         model,
         style,
         stream: true,
+        materials: materials || [],
+        sections: sections || []
       }),
     })
+  },
+
+  async uploadMaterial(file: File, description: string = ''): Promise<any> {
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('description', description)
+    
+    const response = await fetch(`${SERVER_URL}/upload_material`, {
+      method: 'POST',
+      body: formData
+    })
+    
+    return response.json()
   },
 
   AI_Writing({

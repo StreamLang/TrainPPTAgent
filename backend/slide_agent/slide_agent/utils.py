@@ -7,7 +7,13 @@
 # @Desc  : 一些依赖函数
 import json
 
-def parse_markdown_to_slides(markdown_text):
+def parse_markdown_to_slides(markdown_text, user_sections=None):
+    """
+    解析Markdown文本为幻灯片结构
+    :param markdown_text: Markdown文本
+    :param user_sections: 用户提供的章节内容
+    :return: 幻灯片结构列表
+    """
     slides = []
     lines = markdown_text.strip().split('\n')
 
@@ -28,6 +34,12 @@ def parse_markdown_to_slides(markdown_text):
     if sections:
         slides.append({"type": "contents", "data": {"items": sections}})
 
+    # Create a mapping of section titles to user content if provided
+    user_content_map = {}
+    if user_sections:
+        for section in user_sections:
+            user_content_map[section["title"]] = section
+
     # Process each section and its subsections
     current_section_title = ""
     current_subsection_title = ""
@@ -39,7 +51,19 @@ def parse_markdown_to_slides(markdown_text):
             if current_subsection_title:
                 slide_items = []
                 for item in current_items:
-                    slide_items.append({"title": item, "text": f"Detailed content about {item}"})
+                    # 如果用户提供了该章节的内容，使用用户内容
+                    user_content = None
+                    if current_section_title in user_content_map:
+                        section_content = user_content_map[current_section_title]
+                        for field in section_content.get("fields", []):
+                            if field["title"] == current_subsection_title:
+                                user_content = field["content"]
+                                break
+                    
+                    slide_items.append({
+                        "title": item, 
+                        "text": user_content if user_content else f"Detailed content about {item}"
+                    })
                 slides.append({"type": "content", "data": {"title": current_subsection_title, "items": slide_items}})
                 current_items = []
 
@@ -50,7 +74,19 @@ def parse_markdown_to_slides(markdown_text):
             if current_subsection_title:
                 slide_items = []
                 for item in current_items:
-                    slide_items.append({"title": item, "text": f"Detailed content about {item}"})
+                    # 如果用户提供了该小节的内容，使用用户内容
+                    user_content = None
+                    if current_section_title in user_content_map:
+                        section_content = user_content_map[current_section_title]
+                        for field in section_content.get("fields", []):
+                            if field["title"] == current_subsection_title:
+                                user_content = field["content"]
+                                break
+                    
+                    slide_items.append({
+                        "title": item, 
+                        "text": user_content if user_content else f"Detailed content about {item}"
+                    })
                 slides.append({"type": "content", "data": {"title": current_subsection_title, "items": slide_items}})
                 current_items = []
             current_subsection_title = line[4:].strip()
@@ -61,7 +97,19 @@ def parse_markdown_to_slides(markdown_text):
     if current_subsection_title:
         slide_items = []
         for item in current_items:
-            slide_items.append({"title": item, "text": f"Detailed content about {item}"})
+            # 如果用户提供了该小节的内容，使用用户内容
+            user_content = None
+            if current_section_title in user_content_map:
+                section_content = user_content_map[current_section_title]
+                for field in section_content.get("fields", []):
+                    if field["title"] == current_subsection_title:
+                        user_content = field["content"]
+                        break
+            
+            slide_items.append({
+                "title": item, 
+                "text": user_content if user_content else f"Detailed content about {item}"
+            })
         slides.append({"type": "content", "data": {"title": current_subsection_title, "items": slide_items}})
 
     slides.append({"type": "end"})

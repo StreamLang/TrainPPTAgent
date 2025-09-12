@@ -57,6 +57,7 @@ export default () => {
   const { isEmptySlide } = useSlideHandler()
 
   // 图片池，用于存储可用的图片资源
+  // 注释掉图片池相关代码 - 用户不希望自动添加无关图片
   const imgPool = ref<ImgPoolItem[]>([])
   // 过渡页的索引，用于显示章节编号
   const transitionIndex = ref(0)
@@ -300,61 +301,62 @@ export default () => {
     }
   }
 
-  const getUseableImage = (el: PPTImageElement): ImgPoolItem | null => {
-    let img: ImgPoolItem | null = null
+  // 注释掉图片处理函数 - 用户不希望自动添加无关图片
+  // const getUseableImage = (el: PPTImageElement): ImgPoolItem | null => {
+  //   let img: ImgPoolItem | null = null
   
-    let imgs = []
+  //   let imgs = []
   
-    // 根据元素的宽高比选择合适的图片
-    if (el.width === el.height) imgs = imgPool.value.filter(img => img.width === img.height)
-    else if (el.width > el.height) imgs = imgPool.value.filter(img => img.width > img.height)
-    else imgs = imgPool.value.filter(img => img.width <= img.height)
-    if (!imgs.length) imgs = imgPool.value
+  //   // 根据元素的宽高比选择合适的图片
+  //   if (el.width === el.height) imgs = imgPool.value.filter(img => img.width === img.height)
+  //   else if (el.width > el.height) imgs = imgPool.value.filter(img => img.width > img.height)
+  //   else imgs = imgPool.value.filter(img => img.width <= img.height)
+  //   if (!imgs.length) imgs = imgPool.value
   
-    // 随机选择一张图片并从池中移除
-    img = imgs[Math.floor(Math.random() * imgs.length)]
-    imgPool.value = imgPool.value.filter(item => item.id !== img!.id)
+  //   // 随机选择一张图片并从池中移除
+  //   img = imgs[Math.floor(Math.random() * imgs.length)]
+  //   imgPool.value = imgPool.value.filter(item => item.id !== img!.id)
   
-    return img
-  }
+  //   return img
+  // }
   
-  /**
-   * 创建新的图片元素，自动裁剪以适应容器
-   * @param el 原始图片元素
-   * @returns 更新后的图片元素
-   */
-  const getNewImgElement = (el: PPTImageElement): PPTImageElement => {
-    const img = getUseableImage(el)
-    if (!img) return el
+  // /**
+  //  * 创建新的图片元素，自动裁剪以适应容器
+  //  * @param el 原始图片元素
+  //  * @returns 更新后的图片元素
+  //  */
+  // const getNewImgElement = (el: PPTImageElement): PPTImageElement => {
+  //   const img = getUseableImage(el)
+  //   if (!img) return el
   
-    // 计算裁剪范围以保持宽高比
-    let scale = 1
-    let w = el.width
-    let h = el.height
-    let range: ImageClipDataRange = [[0, 0], [0, 0]]
-    const radio = el.width / el.height
+  //   // 计算裁剪范围以保持宽高比
+  //   let scale = 1
+  //   let w = el.width
+  //   let h = el.height
+  //   let range: ImageClipDataRange = [[0, 0], [0, 0]]
+  //   const radio = el.width / el.height
 
-    if (img.width / img.height >= radio) {
-      // 图片更宽，左右裁剪
-      scale = img.height / el.height
-      w = img.width / scale
-      const diff = (w - el.width) / 2 / w * 100
-      range = [[diff, 0], [100 - diff, 100]]
-    }
-    else {
-      // 图片更高，上下裁剪
-      scale = img.width / el.width
-      h = img.height / scale
-      const diff = (h - el.height) / 2 / h * 100
-      range = [[0, diff], [100, 100 - diff]]
-    }
-    
-    const clipShape = (el.clip && el.clip.shape) ? el.clip.shape : 'rect'
-    const clip = { range, shape: clipShape }
-    const src = img.src
-  
-    return { ...el, src, clip }
-  }
+  //   if (img.width / img.height >= radio) {
+  //     // 图片更宽，左右裁剪
+  //     scale = img.height / el.height
+  //     w = img.width / scale
+  //     const diff = (w - el.width) / 2 / w * 100
+  //     range = [[diff, 0], [100 - diff, 100]]
+  //   }
+  //   else {
+  //     // 图片更高，上下裁剪
+  //     scale = img.width / el.width
+  //     h = img.height / scale
+  //     const diff = (h - el.height) / 2 / h * 100
+  //     range = [[0, diff], [100, 100 - diff]]
+  //   }
+  //   
+  //   const clipShape = (el.clip && el.clip.shape) ? el.clip.shape : 'rect'
+  //   const clip = { range, shape: clipShape }
+  //   const src = img.src
+  // 
+  //   return { ...el, src, clip }
+  // }
   
   /**
    * 提取Markdown内容
@@ -523,7 +525,8 @@ export default () => {
       if (item.type === 'cover') {
         const coverTemplate = coverTemplates[Math.floor(Math.random() * coverTemplates.length)]
         const elements = coverTemplate.elements.map(el => {
-          if (el.type === 'image' && (el as any).imageType && imgPool.value.length) return getNewImgElement(el as PPTImageElement)
+          // 注释掉图片处理 - 用户不希望自动添加无关图片
+          // if (el.type === 'image' && (el as any).imageType && imgPool.value.length) return getNewImgElement(el as PPTImageElement)
           if (el.type !== 'text' && el.type !== 'shape') return el
           if (checkTextType(el, 'title') && item.data.title) {
             return getNewTextElement({ el: el as any, text: item.data.title, maxLine: 1 })
@@ -598,7 +601,8 @@ export default () => {
         const unusedGroupIds: string[] = []
 
         const elements = contentsTemplate.elements.map(el => {
-          if (el.type === 'image' && (el as any).imageType && imgPool.value.length) return getNewImgElement(el as PPTImageElement)
+          // 注释掉图片处理 - 用户不希望自动添加无关图片
+          // if (el.type === 'image' && (el as any).imageType && img极Pool.value.length) return getNewImgElement(el as PPTImageElement)
           if (el.type !== 'text' && el.type !== 'shape') return el
 
           if (checkTextType(el, 'item')) {
@@ -625,7 +629,8 @@ export default () => {
       else if (item.type === 'transition') {
         transitionIndex.value = transitionIndex.value + 1
         const elements = transitionTemplate.value!.elements.map(el => {
-          if (el.type === 'image' && (el as any).imageType && imgPool.value.length) return getNewImgElement(el as PPTImageElement)
+          // 注释掉图片处理 - 用户不希望自动添加无关图片
+          // if (el.type === 'image' && (el as any).imageType && imgPool.value.length) return getNewImgElement(el as PPTImageElement)
           if (el.type !== 'text' && el.type !== 'shape') return el
           if (checkTextType(el, 'title') && item.data.title) {
             return getNewTextElement({ el: el as any, text: item.data.title, maxLine: 1 })
@@ -685,7 +690,8 @@ export default () => {
         const chartItems = items.filter(isChartItem) as AIPPTContentChartItem[]
 
         const elements = contentTemplate.elements.map(el => {
-          if (el.type === 'image' && (el as any).imageType && imgPool.value.length) return getNewImgElement(el as PPTImageElement)
+          // 注释掉图片处理 - 用户不希望自动添加无关图片
+          // if (el.type === 'image' && (el as any).imageType && imgPool.value.length) return getNewImgElement(el as PPTImageElement)
 
           if (el.type === 'chart') {
             const idx = sortedChartItemIds.findIndex(id => id === el.id)
@@ -794,7 +800,8 @@ export default () => {
         const unusedGroupIds: string[] = []
 
         const elements = referenceTemplate.elements.map(el => {
-          if (el.type === 'image' && (el as any).imageType && imgPool.value.length) return getNewImgElement(el as PPTImageElement)
+          // 注释掉图片处理 - 用户不希望自动添加无关图片
+          // if (el.type === 'image' && (el as any).imageType && imgPool.value.length) return getNewImgElement(el as PPTImageElement)
           if (el.type !== 'text' && el.type !== 'shape') return el
 
           if (checkTextType(el, 'title') && item.data.title) {
@@ -876,7 +883,8 @@ export default () => {
       else if (item.type === 'end') {
         const endTemplate = endTemplates[Math.floor(Math.random() * endTemplates.length)]
         const elements = endTemplate.elements.map(el => {
-          if (el.type === 'image' && (el as any).imageType && imgPool.value.length) return getNewImgElement(el as PPTImageElement)
+          // 注释掉图片处理 - 用户不希望自动添加无关图片
+          // if (el.type === 'image' && (el as any).imageType && imgPool.value.length) return getNewImgElement(el as PPTImageElement)
           return el
         })
         yield { ...endTemplate, id: nanoid(10), elements }

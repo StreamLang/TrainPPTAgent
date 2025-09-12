@@ -2,7 +2,8 @@
 # -*- coding: utf-8 -*-
 """
 TrainPPTAgent 后端服务启动脚本
-支持一键启动所有后端服务，包括端口清理和环境检查
+简化版 - 不检查依赖环境，用户自行管理conda环境
+支持将所有服务日志输出到同一个日志文件中
 """
 
 import os
@@ -11,15 +12,18 @@ import time
 import signal
 import subprocess
 import shutil
+import argparse
 from pathlib import Path
 from typing import List, Dict, Optional
 from datetime import datetime
 from dotenv import dotenv_values
+import platform
 
 class BackendStarter:
-    def __init__(self):
+    def __init__(self, unified_logging=False):
         self.base_dir = Path(__file__).parent
         self.logs_dir = self.base_dir / 'logs'
+        self.unified_logging = unified_logging
         self.services = {
             'main_api': {
                 'port': 6800,
@@ -45,6 +49,8 @@ class BackendStarter:
         }
         self.processes: Dict[str, subprocess.Popen] = {}
         self.log_files: Dict[str, Path] = {}
+        self.log_file_handles: Dict[str, object] = {}
+        self.unified_log_file: Optional[Path] = None
         
     def setup_logs_directory(self):
         """设置日志目录"""
@@ -57,132 +63,28 @@ class BackendStarter:
         else:
             print(f"✅ 日志目录已存在: {self.logs_dir}")
             
-        # 为每个服务创建日志文件
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        for service_name in self.services.keys():
-            log_file = self.logs_dir / f"{service_name}_{timestamp}.log"
-            self.log_files[service_name] = log_file
-            print(f"📝 日志文件: {service_name} -> {log_file}")
+        if self.unified_logging:
+            # 创建统一的日志文件
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            self.unified_log_file = self.logs_dir / f"all_services_{timestamp}.log"
+            print(f"📝 统一日志文件: {self.unified_log_file}")
+        else:
+            # 为每个服务创建单独的日志文件
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            for service_name in self.services.keys():
+                log_file = self.logs_dir / f"{service_name}_{timestamp}.log"
+                self.log_files[service_name] = log_file
+                print(f"📝 日志文件: {service_name} -> {log_file}")
             
     def print_banner(self):
         """打印启动横幅"""
         print("=" * 60)
-        print("🚀 TrainPPTAgent 后端服务启动器")
+        print("🚀 TrainPPTAgent 后端服务启动器 (简化版)")
+        if self.unified_logging:
+            print("📝 所有服务日志将输出到同一个日志文件中")
         print("=" * 60)
         print()
         
-    def check_python_version(self):
-        """检查Python版本"""
-        if sys.version_info < (3, 8):
-            print("❌ 错误: 需要Python 3.8或更高版本")
-            sys.exit(1)
-        print(f"✅ Python版本: {sys.version}")
-        
-    def check_dependencies(self):
-        """检查依赖包"""
-        print("📦 检查依赖包...")
-        requirements_file = self.base_dir / 'requirements.txt'
-        if not requirements_file.exists():
-            print("❌ 错误: requirements.txt 文件不存在")
-            sys.exit(1)
-            
-        try:
-            # 检查pip是否可用
-            subprocess.run([sys.executable, '-m', 'pip', '--version'], 
-                         check=True, capture_output=True)
-        except subprocess.CalledProcessError:
-            print("❌ 错误: pip不可用")
-            sys.exit(1)
-            
-        print("✅ 依赖检查完成")
-        
-    def install_dependencies(self):
-        """安装依赖包"""
-        print("📦 安装依赖包...")
-        requirements_file = self.base_dir / 'requirements.txt'
-
-        # 定义可用的镜像源
-        mirrors = {
-            '0': {
-                'name': '官方PyPI源',
-                'url': None,
-                'description': '官方源，全球通用但可能较慢'
-            },
-            '1': {
-                'name': '清华大学镜像源',
-                'url': 'https://pypi.tuna.tsinghua.edu.cn/simple/',
-                'description': '清华大学开源软件镜像站，国内访问速度快'
-            },
-            '2': {
-                'name': '阿里云镜像源',
-                'url': 'https://mirrors.aliyun.com/pypi/simple/',
-                'description': '阿里云提供的PyPI镜像，稳定可靠'
-            },
-            '3': {
-                'name': '中科大镜像源',
-                'url': 'https://pypi.mirrors.ustc.edu.cn/simple/',
-                'description': '中科大开源软件镜像，教育网用户推荐'
-            },
-            '4': {
-                'name': '豆瓣镜像源',
-                'url': 'https://pypi.douban.com/simple/',
-                'description': '豆瓣提供的PyPI镜像，老牌稳定'
-            },
-            '5': {
-                'name': '华为云镜像源',
-                'url': 'https://mirrors.huaweicloud.com/repository/pypi/simple/',
-                'description': '华为云镜像，企业级稳定性'
-            },
-            '6': {
-                'name': '腾讯云镜像源',
-                'url': 'https://mirrors.cloud.tencent.com/pypi/simple/',
-                'description': '腾讯云镜像，国内访问优化'
-            }
-        }
-
-        print("🚀 请选择PyPI镜像源:")
-        print("   - 在国内使用镜像源可以显著提升下载速度")
-        print("   - 建议根据网络环境选择合适的镜像源")
-        print()
-        
-        for key, mirror in mirrors.items():
-            print(f"   {key}. {mirror['name']}")
-            print(f"      {mirror['description']}")
-            if mirror['url']:
-                print(f"      地址: {mirror['url']}")
-            print()
-        
-        while True:
-            choice = input("请选择镜像源 (0-6, 默认0): ").strip()
-            if not choice:
-                choice = '0'  # 默认选择清华大学镜像源
-            
-            if choice in mirrors:
-                selected_mirror = mirrors[choice]
-                break
-            else:
-                print("❌ 无效选择，请输入 0-6 之间的数字")
-        
-        pip_cmd = [sys.executable, '-m', 'pip', 'install', '-r', str(requirements_file)]
-        
-        if selected_mirror['url']:
-            pip_cmd.extend(['-i', selected_mirror['url']])
-            print(f"✅ 使用 {selected_mirror['name']}")
-        else:
-            print(f"✅ 使用 {selected_mirror['name']}")
-        
-        try:
-            result = subprocess.run(pip_cmd, capture_output=False, text=True)
-            
-            if result.returncode == 0:
-                print("✅ 依赖安装成功")
-            else:
-                print("⚠️  依赖安装可能有问题，请检查输出:")
-                print(result.stderr)
-        except Exception as e:
-            print(f"❌ 依赖安装失败: {e}")
-            sys.exit(1)
-            
     def check_ports(self) -> List[int]:
         """检查端口占用情况"""
         occupied_ports = []
@@ -263,54 +165,68 @@ class BackendStarter:
         service_dir = config['dir']
         script = config['script']
         port = config['port']
-        log_file = self.log_files[service_name]
         
         print(f"🚀 启动服务: {service_name} (端口: {port})")
-        print(f"📝 日志文件: {log_file}")
         
         try:
             # 切换到服务目录
             os.chdir(service_dir)
             
-            # 打开日志文件
-            with open(log_file, 'w', encoding='utf-8') as log_f:
-                # 写入启动信息
-                log_f.write(f"=== {service_name} 服务启动日志 ===\n")
-                log_f.write(f"启动时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-                log_f.write(f"工作目录: {service_dir}\n")
-                log_f.write(f"脚本文件: {script}\n")
-                log_f.write(f"端口: {port}\n")
-                log_f.write("=" * 50 + "\n\n")
-                log_f.flush()
-                
-                # 读取 .env 并合入当前环境
-                env = os.environ.copy()
-                env_file_path = service_dir / config['env_file']
-                if env_file_path.exists():
-                    env.update(dotenv_values(str(env_file_path)))
-                
-                process = subprocess.Popen(
-                    [sys.executable, script],
-                    stdout=log_f,
-                    stderr=subprocess.STDOUT,
-                    text=True,
-                    bufsize=1,
-                    universal_newlines=True,
-                    env=env  
-                )
-                
-                # 等待一段时间检查进程是否正常启动
-                time.sleep(3)
-                
-                if process.poll() is None:
-                    print(f"✅ {service_name} 启动成功 (PID: {process.pid})")
-                    return process
-                else:
-                    print(f"❌ {service_name} 启动失败，请查看日志文件: {log_file}")
-                    return None
+            if self.unified_logging and self.unified_log_file:
+                # 使用统一日志文件
+                log_file_path = self.unified_log_file
+                log_f = open(log_file_path, 'a', encoding='utf-8')
+                print(f"📝 日志文件: {log_file_path}")
+            else:
+                # 使用单独的日志文件
+                log_file_path = self.log_files[service_name]
+                log_f = open(log_file_path, 'w', encoding='utf-8')
+                print(f"📝 日志文件: {log_file_path}")
+            
+            # 写入启动信息
+            log_f.write(f"\n{'='*50}\n")
+            log_f.write(f"🚀 启动服务: {service_name}\n")
+            log_f.write(f"时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+            log_f.write(f"工作目录: {service_dir}\n")
+            log_f.write(f"脚本文件: {script}\n")
+            log_f.write(f"端口: {port}\n")
+            log_f.write(f"{'='*50}\n\n")
+            log_f.flush()
+            
+            # 保存文件句柄以便后续管理
+            self.log_file_handles[service_name] = log_f
+            
+            # 读取 .env 并合入当前环境
+            env = os.environ.copy()
+            env_file_path = service_dir / config['env_file']
+            if env_file_path.exists():
+                env.update(dotenv_values(str(env_file_path)))
+            
+            process = subprocess.Popen(
+                [sys.executable, script],
+                stdout=log_f,
+                stderr=subprocess.STDOUT,
+                text=True,
+                bufsize=1,
+                universal_newlines=True,
+                env=env  
+            )
+            
+            # 等待一段时间检查进程是否正常启动
+            time.sleep(3)
+            
+            if process.poll() is None:
+                print(f"✅ {service_name} 启动成功 (PID: {process.pid})")
+                return process
+            else:
+                print(f"❌ {service_name} 启动失败，请查看日志文件: {log_file_path}")
+                log_f.close()
+                return None
                     
         except Exception as e:
             print(f"❌ 启动 {service_name} 时出错: {e}")
+            if 'log_f' in locals():
+                log_f.close()
             return None
         finally:
             # 切换回原目录
@@ -339,12 +255,27 @@ class BackendStarter:
         for service_name, config in self.services.items():
             if service_name in self.processes:
                 print(f"  ✅ {service_name}: http://127.0.0.1:{config['port']}")
-                print(f"     📝 日志: {self.log_files[service_name]}")
+        if self.unified_logging and self.unified_log_file:
+            print(f"  📝 统一日志文件: {self.unified_log_file}")
+            # 根据操作系统提供不同的日志查看建议
+            system = platform.system()
+            if system == "Windows":
+                print("  💡 您可以使用以下命令实时查看日志:")
+                print(f"     PowerShell: Get-Content -Path \"{self.unified_log_file}\" -Wait")
+                print(f"     CMD: type \"{self.unified_log_file}\" | more")
+            else:
+                print("  💡 您可以使用以下命令实时查看日志:")
+                print(f"     tail -f {self.unified_log_file}")
+        else:
+            print("  📝 日志文件:")
+            for service_name, log_file in self.log_files.items():
+                print(f"     {service_name}: {log_file}")
         print()
         print("💡 提示:")
         print("  - 按 Ctrl+C 停止所有服务")
         print("  - 前端服务请访问: http://127.0.0.1:5173")
-        print("  - 服务日志保存在 backend/logs/ 目录中")
+        if self.unified_logging and self.unified_log_file:
+            print("  - 所有服务日志已合并到统一日志文件中")
         print("=" * 60)
         
         # 等待所有进程
@@ -353,6 +284,13 @@ class BackendStarter:
                 for service_name, process in list(self.processes.items()):
                     if process.poll() is not None:
                         print(f"⚠️  服务 {service_name} 已停止")
+                        # 关闭对应的日志文件句柄
+                        if service_name in self.log_file_handles:
+                            try:
+                                self.log_file_handles[service_name].close()
+                                del self.log_file_handles[service_name]
+                            except:
+                                pass
                         del self.processes[service_name]
                 time.sleep(1)
         except KeyboardInterrupt:
@@ -363,6 +301,14 @@ class BackendStarter:
         """停止所有服务"""
         print("🛑 停止所有服务...")
         
+        # 先关闭所有文件句柄
+        for service_name, log_handle in self.log_file_handles.items():
+            try:
+                log_handle.close()
+            except:
+                pass
+        
+        # 再终止所有进程
         for service_name, process in self.processes.items():
             try:
                 print(f"🔄 停止服务: {service_name}")
@@ -376,6 +322,7 @@ class BackendStarter:
                 print(f"❌ 停止 {service_name} 时出错: {e}")
                 
         self.processes.clear()
+        self.log_file_handles.clear()
         print("✅ 所有服务已停止")
         
     def run(self):
@@ -384,15 +331,6 @@ class BackendStarter:
         
         # 设置日志目录
         self.setup_logs_directory()
-        
-        # 检查Python版本
-        self.check_python_version()
-        
-        # 检查依赖
-        self.check_dependencies()
-        
-        # 安装依赖
-        self.install_dependencies()
         
         # 检查端口占用
         occupied_ports = self.check_ports()
@@ -407,7 +345,13 @@ class BackendStarter:
 
 def main():
     """主函数"""
-    starter = BackendStarter()
+    # 解析命令行参数
+    parser = argparse.ArgumentParser(description='TrainPPTAgent 后端服务启动器')
+    parser.add_argument('--unified-logging', action='store_true', 
+                        help='将所有服务日志输出到同一个日志文件中')
+    args = parser.parse_args()
+    
+    starter = BackendStarter(unified_logging=args.unified_logging)
     
     # 注册信号处理器
     def signal_handler(signum, frame):

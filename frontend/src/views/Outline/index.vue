@@ -16,126 +16,71 @@
             PPTAgent
           </h1>
           <div class="subtitle">
-            {{ step === 'outline' ? '确认下方内容大纲，开始选择模板' : '输入您的PPT主题，AI将为您生成专业大纲' }}
-          </div>
-        </div>
-        <div class="progress-indicator">
-          <div class="progress-step" :class="{ active: step === 'setup' }">
-            <div class="step-circle">1</div>
-            <span>输入主题</span>
-          </div>
-          <div class="progress-line" :class="{ completed: step === 'outline' }"></div>
-          <div class="progress-step" :class="{ active: step === 'outline' }">
-            <div class="step-circle">2</div>
-            <span>确认大纲</span>
+            确认下方内容大纲，开始选择模板
           </div>
         </div>
       </div>
 
-      <!-- Setup Step -->
-      <div v-if="step === 'setup'" class="setup-section">
-        <div class="input-section">
-          <div class="input-wrapper">
-            <input
-              ref="inputRef"
-              v-model="keyword"
-              :maxlength="50"
-              class="main-input"
-              placeholder="请输入PPT主题，如：大学生职业生涯规划"
-              @keyup.enter="createOutline"
-            />
-            <div class="input-actions">
-              <span class="character-count">{{ keyword.length }}/50</span>
-              <button class="generate-btn" @click="createOutline" :disabled="!keyword.trim() || showProcessingModal">
-                <span class="btn-icon">✨</span>
-                {{ showProcessingModal ? '生成中...' : 'AI 生成' }}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Recommendations -->
-        <div class="recommendations-section">
-          <h3 class="section-title">💡 推荐主题</h3>
-          <div class="recommendations-grid">
-            <button
-              v-for="(item, index) in recommends"
-              :key="index"
-              class="recommend-item"
-              @click="setKeyword(item)"
-            >
-              {{ item }}
+      <!-- Outline Section -->
+      <div class="outline-section">
+        <div class="outline-header">
+          <h3 class="section-title">📄 内容大纲</h3>
+          <div class="outline-actions-top">
+            <button class="secondary-btn" @click="toggleEditMode">
+              <span class="btn-icon">{{ isEditMode ? '👁️' : '✏️' }}</span>
+              {{ isEditMode ? '预览模式' : '编辑模式' }}
+            </button>
+            <button class="secondary-btn" @click="goBackToHome">
+              <span class="btn-icon">↩️</span>
+              返回首页
             </button>
           </div>
         </div>
 
-        <!-- Configuration -->
-        <div class="config-section">
-          <h3 class="section-title">⚙️ 高级配置</h3>
-          <div class="config-grid">
-            <div class="config-item">
-              <label class="config-label">语言</label>
-              <select v-model="language" class="config-select">
-                <option value="中文">中文</option>
-                <option value="English">English</option>
-                <option value="日本語">日本語</option>
-              </select>
-            </div>
-            <div class="config-item">
-              <label class="config-label">AI模型</label>
-              <select v-model="model" class="config-select">
-                <option value="GLM-4.5-Air">GLM-4.5-Air</option>
-                <option value="GLM-4.5-Flash">GLM-4.5-Flash</option>
-                <option value="ark-doubao-seed-1.6-flash">Doubao-Seed-1.6-flash</option>
-                <option value="ark-doubao-seed-1.6">Doubao-Seed-1.6</option>
-              </select>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Outline Step -->
-      <div v-if="step === 'outline'" class="outline-section">
-        <div class="outline-header">
-          <h3 class="section-title">📄 内容大纲</h3>
-          <div class="outline-info">
-            <span class="info-text">点击编辑内容，右键添加/删除大纲项</span>
-          </div>
-        </div>
-
         <div class="outline-content">
-          <div v-if="outlineCreating" class="outline-preview">
-            <div class="typing-indicator">
-              <span class="typing-dot"></span>
-              <span class="typing-dot"></span>
-              <span class="typing-dot"></span>
+          <div class="outline-editor">
+            <div v-if="isEditMode">
+              <!-- 图片粘贴提示区域 -->
+              <div class="image-paste-section" @paste="handlePaste">
+                <div class="paste-hint">
+                  <span class="paste-icon">📋</span>
+                  <p>提示：您可以在此区域粘贴图片（Ctrl+V）</p>
+                  <small>粘贴的图片将自动转换为base64并关联到当前大纲</small>
+                </div>
+                
+                <!-- 图片预览区域 -->
+                <div v-if="pastedImages.length > 0" class="image-previews">
+                  <h4>已粘贴图片：</h4>
+                  <div class="preview-grid">
+                    <div v-for="(img, index) in pastedImages" :key="index" class="preview-item">
+                      <img :src="img.data" :alt="`粘贴图片${index + 1}`" class="preview-img" />
+                      <div class="preview-actions">
+                        <button @click="removeImage(index)" class="remove-btn">删除</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <textarea
+                v-model="outline"
+                class="outline-textarea"
+                placeholder="在此编辑Markdown大纲内容..."
+                rows="20"
+                @paste="handlePaste"
+              ></textarea>
             </div>
-            <pre ref="outlineRef" class="outline-text">{{ outline }}</pre>
-          </div>
-          <div v-else class="outline-editor">
-            <OutlineEditor v-model:value="outline" />
+            <div v-else>
+              <div class="outline-preview-content" v-html="renderedOutline"></div>
+            </div>
           </div>
         </div>
 
-        <div v-if="!outlineCreating" class="outline-actions">
+        <div class="outline-actions">
           <button class="primary-btn" @click="goPPT">
             <span class="btn-icon">🎨</span>
-            生成PPT
+            进一步完善
           </button>
-          <button class="secondary-btn" @click="resetToSetup">
-            <span class="btn-icon">↩️</span>
-            重新生成
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Processing Modal -->
-    <div v-if="showProcessingModal" class="processing-modal-overlay">
-      <div class="processing-modal">
-        <div class="processing-content">
-          <div class="processing-spinner"></div>
-          <div class="processing-text">正在处理中，请稍候...</div>
         </div>
       </div>
     </div>
@@ -143,119 +88,104 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import api from '@/services'
-import useAIPPT from '@/hooks/useAIPPT'
+import { ref, computed, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import message from '@/utils/message'
-import FullscreenSpin from '@/components/FullscreenSpin.vue'
-import OutlineEditor from '@/components/OutlineEditor.vue'
+import { marked } from 'marked'
+import SessionManager from '@/utils/sessionManager'
 
 const router = useRouter()
-const { getMdContent } = useAIPPT()
+const route = useRoute()
 
-const language = ref('中文')
-const keyword = ref('')
-const outline = ref('')
-const loading = ref(false)
-const outlineCreating = ref(false)
-const step = ref<'setup' | 'outline'>('setup')
-const model = ref('GLM-4.5-Air')
+// 从sessionStorage读取大纲数据
+const sessionIdFromQuery = route.query.session_id as string
+let outlineData = { outline: '', language: '中文', model: 'qwen3-235b' }
+
+if (sessionIdFromQuery) {
+  const storedData = SessionManager.getOutlineData(sessionIdFromQuery)
+  if (storedData) {
+    outlineData = storedData
+  }
+}
+
+const language = ref(outlineData.language)
+const outline = ref(outlineData.outline)
+const model = ref(outlineData.model)
 const outlineRef = ref<HTMLElement>()
-const inputRef = ref<HTMLInputElement>()
-const showProcessingModal = ref(false)
+const isEditMode = ref(false)
 
-const recommends = ref([
-  '2025科技前沿动态',
-  '大数据如何改变世界',
-  '餐饮市场调查与研究',
-  'AIGC在教育领域的应用',
-  '社交媒体与品牌营销',
-  '5G技术如何改变我们的生活',
-  '年度工作总结与展望',
-  '区块链技术及其应用',
-  '大学生职业生涯规划',
-  '公司年会策划方案',
-])
+// 粘贴的图片数据
+const pastedImages = ref<Array<{data: string; type: string; name: string}>>([])
 
-onMounted(() => {
-  setTimeout(() => {
-    inputRef.value?.focus()
-  }, 500)
+// 大纲条目数据结构
+
+
+// 渲染Markdown为HTML
+const renderedOutline = computed(() => {
+  return marked(outline.value)
 })
 
-const setKeyword = (value: string) => {
-  keyword.value = value
-  inputRef.value?.focus()
+const toggleEditMode = () => {
+  isEditMode.value = !isEditMode.value
 }
 
-const resetToSetup = () => {
-  outline.value = ''
-  step.value = 'setup'
-  setTimeout(() => {
-    inputRef.value?.focus()
-  }, 100)
+const goBackToHome = () => {
+  router.push({ name: 'Home' })
 }
 
-const createOutline = async () => {
-  if (!keyword.value.trim()) {
-    message.error('请先输入PPT主题')
-    return
-  }
+// 处理剪贴板粘贴事件
+const handlePaste = async (event: ClipboardEvent) => {
+  const clipboardItems = event.clipboardData?.items
+  if (!clipboardItems) return
 
-  loading.value = true
-  outlineCreating.value = true
-  showProcessingModal.value = true
-
-  try {
-    const stream = await api.AIPPT_Outline({
-      content: keyword.value,
-      language: language.value,
-      model: model.value,
-    })
-
-    loading.value = false
-    step.value = 'outline'
-
-    const reader: ReadableStreamDefaultReader = stream.body.getReader()
-    const decoder = new TextDecoder('utf-8')
-
-    const readStream = () => {
-      reader.read().then(({ done, value }) => {
-        if (done) {
-          outline.value = getMdContent(outline.value)
-          outline.value = outline.value.replace(/<!--[\s\S]*?-->/g, '').replace(/<think>[\s\S]*?<\/think>/g, '')
-          outlineCreating.value = false
-          showProcessingModal.value = false
-          return
+  for (const item of clipboardItems) {
+    if (item.type.startsWith('image/')) {
+      event.preventDefault()
+      
+      const blob = item.getAsFile()
+      if (blob) {
+        const reader = new FileReader()
+        reader.onload = (e) => {
+          const base64Data = e.target?.result as string
+          if (base64Data) {
+            pastedImages.value.push({
+              data: base64Data,
+              type: item.type,
+              name: `pasted-image-${Date.now()}.${item.type.split('/')[1]}`
+            })
+            message.success('图片已成功粘贴！')
+          }
         }
-
-        const chunk = decoder.decode(value, { stream: true })
-        outline.value += chunk
-
-        if (outlineRef.value) {
-          outlineRef.value.scrollTop = outlineRef.value.scrollHeight + 20
-        }
-
-        readStream()
-      })
+        reader.readAsDataURL(blob)
+      }
+      break
     }
-    readStream()
-  } catch (error) {
-    loading.value = false
-    outlineCreating.value = false
-    showProcessingModal.value = false
-    message.error('生成失败，请重试')
   }
+}
+
+// 移除图片
+const removeImage = (index: number) => {
+  pastedImages.value.splice(index, 1)
+  message.info('图片已移除')
 }
 
 const goPPT = () => {
+  // 确保保存最新的编辑内容
+  const currentOutline = outline.value
+  
+  // 使用SessionManager存储outline数据（包含图片）
+  const sessionId = SessionManager.storeOutlineData({
+    outline: currentOutline,
+    language: language.value,
+    model: model.value,
+    images: pastedImages.value // 存储粘贴的图片
+  })
+  
+  // 通过sessionId跳转到PPT页面
   router.push({
     name: 'PPT',
     query: {
-      outline: outline.value,
-      language: language.value,
-      model: model.value,
+      session_id: sessionId
     }
   })
 }
@@ -568,6 +498,16 @@ const goPPT = () => {
           border-color: #667eea;
         }
       }
+      
+      .config-select-static {
+        width: 100%;
+        padding: 0.75rem;
+        border: 1px solid #d1d5db;
+        border-radius: 0.5rem;
+        background: #f9fafb;
+        color: #475569;
+        font-size: 0.9rem;
+      }
     }
   }
 }
@@ -583,22 +523,23 @@ const goPPT = () => {
 
   .outline-header {
     margin-bottom: 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 
     .section-title {
       font-size: 1.3rem;
       font-weight: 600;
-      margin-bottom: 0.5rem;
+      margin: 0;
       color: #334155;
       display: flex;
       align-items: center;
       gap: 0.5rem;
     }
 
-    .outline-info {
-      .info-text {
-        color: #64748b;
-        font-size: 0.9rem;
-      }
+    .outline-actions-top {
+      display: flex;
+      gap: 0.75rem;
     }
   }
 
@@ -649,12 +590,327 @@ const goPPT = () => {
     }
 
     .outline-editor {
-      max-height: 400px;
+      max-height: 600px;
       padding: 1.5rem;
       background: #f8fafc;
       border-radius: 1rem;
       border: 1px solid #e2e8f0;
       overflow-y: auto;
+
+      .outline-textarea {
+        width: 100%;
+        min-height: 300px;
+        padding: 1rem;
+        border: 1px solid #cbd5e1;
+        border-radius: 0.5rem;
+        font-family: 'SF Mono', Monaco, monospace;
+        font-size: 0.9rem;
+        line-height: 1.6;
+        resize: vertical;
+        box-sizing: border-box;
+
+        &:focus {
+          outline: none;
+          border-color: #667eea;
+          box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+      }
+
+      /* 大纲工具栏 */
+      .outline-toolbar {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid #e2e8f0;
+
+        .toolbar-btn {
+          background: #667eea;
+          color: white;
+          border: none;
+          padding: 0.5rem 1rem;
+          border-radius: 0.5rem;
+          font-weight: 500;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          transition: all 0.3s ease;
+          font-size: 0.9rem;
+
+          &:hover {
+            background: #5a67d8;
+            transform: translateY(-1px);
+          }
+        }
+      }
+
+      /* 大纲条目编辑器 */
+      .outline-items-editor {
+        .outline-item {
+          margin-bottom: 1rem;
+          padding: 1rem;
+          background: white;
+          border-radius: 0.5rem;
+          border: 1px solid #e2e8f0;
+          transition: all 0.3s ease;
+
+          &:hover {
+            border-color: #667eea;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
+          }
+
+          &.child {
+            margin-top: 0.5rem;
+            background: #f8fafc;
+          }
+
+          .item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+
+            .item-title {
+              flex: 1;
+              min-width: 0;
+
+              .title-input {
+                width: 100%;
+                padding: 0.5rem;
+                border: 1px solid #cbd5e1;
+                border-radius: 0.25rem;
+                font-size: 1rem;
+                font-weight: 600;
+
+                &:focus {
+                  outline: none;
+                  border-color: #667eea;
+                }
+              }
+
+              .title-text {
+                font-size: 1rem;
+                font-weight: 600;
+                color: #334155;
+                cursor: pointer;
+                padding: 0.25rem 0;
+                display: inline-block;
+
+                &:hover {
+                  color: #667eea;
+                }
+              }
+            }
+
+            .item-actions {
+              display: flex;
+              gap: 0.5rem;
+
+              .action-btn {
+                background: #f1f5f9;
+                border: 1px solid #d1d5db;
+                padding: 0.25rem 0.5rem;
+                border-radius: 0.25rem;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                font-size: 0.8rem;
+
+                &:hover {
+                  background: #e2e8f0;
+                  transform: translateY(-1px);
+                }
+
+                &.danger:hover {
+                  background: #fef2f2;
+                  border-color: #f87171;
+                  color: #dc2626;
+                }
+              }
+            }
+          }
+
+          .item-content {
+            width: 100%;
+            min-height: 60px;
+            padding: 0.75rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.375rem;
+            font-family: inherit;
+            font-size: 0.9rem;
+            line-height: 1.5;
+            resize: vertical;
+            box-sizing: border-box;
+
+            &:focus {
+              outline: none;
+              border-color: #667eea;
+              box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            }
+          }
+        }
+      }
+
+      .outline-preview-content {
+        h1 {
+          font-size: 1.5rem;
+          font-weight: bold;
+          margin: 1rem 0;
+          color: #334155;
+        }
+
+        h2 {
+          font-size: 1.3rem;
+          font-weight: 600;
+          margin: 0.8rem 0;
+          color: #475569;
+        }
+
+        h3 {
+          font-size: 1.1rem;
+          font-weight: 500;
+          margin: 0.6rem 0;
+          color: #64748b;
+        }
+
+        ul {
+          margin: 0.5rem 0;
+          padding-left: 1.5rem;
+
+          li {
+            margin: 0.3rem 0;
+          }
+        }
+
+        p {
+          margin: 0.5rem 0;
+          line-height: 1.6;
+        }
+      }
+
+      /* 图片粘贴区域样式 */
+      .image-paste-section {
+        margin-bottom: 1.5rem;
+        padding: 1.5rem;
+        background: #f8fafc;
+        border: 2px dashed #cbd5e1;
+        border-radius: 1rem;
+        text-align: center;
+        transition: all 0.3s ease;
+
+        &:hover {
+          border-color: #667eea;
+          background: #f1f5f9;
+        }
+
+        .paste-hint {
+          color: #64748b;
+
+          .paste-icon {
+            font-size: 2rem;
+            display: block;
+            margin-bottom: 0.5rem;
+          }
+
+          p {
+            margin: 0 0 0.5rem 0;
+            font-weight: 500;
+          }
+
+          small {
+            font-size: 0.875rem;
+            opacity: 0.8;
+          }
+        }
+      }
+
+      /* 图片预览区域样式 */
+      .image-previews {
+        margin-top: 1.5rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid #e2e8f0;
+
+        h4 {
+          margin: 0 0 1rem 0;
+          color: #334155;
+          font-size: 1rem;
+          font-weight: 600;
+        }
+
+        .preview-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+          gap: 1rem;
+        }
+
+        .preview-item {
+          position: relative;
+          background: white;
+          border: 1px solid #e2e8f0;
+          border-radius: 0.5rem;
+          overflow: hidden;
+          transition: all 0.3s ease;
+
+          &:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+          }
+
+          .preview-img {
+            width: 100%;
+            height: 80px;
+            object-fit: cover;
+            display: block;
+          }
+
+          .preview-actions {
+            padding: 0.5rem;
+            background: rgba(255, 255, 255, 0.9);
+            text-align: center;
+
+            .remove-btn {
+              background: #ef4444;
+              color: white;
+              border: none;
+              padding: 0.25rem 0.5rem;
+              border-radius: 0.25rem;
+              font-size: 0.75rem;
+              cursor: pointer;
+              transition: all 0.3s ease;
+
+              &:hover {
+                background: #dc2626;
+              }
+            }
+          }
+        }
+      }
+
+      .outline-textarea {
+        width: 100%;
+        min-height: 400px;
+        padding: 1.5rem;
+        border: 2px solid #e2e8f0;
+        border-radius: 1rem;
+        font-family: 'SF Mono', Monaco, monospace;
+        font-size: 0.9rem;
+        line-height: 1.6;
+        resize: vertical;
+        background: #f8fafc;
+        box-sizing: border-box;
+        transition: all 0.3s ease;
+
+        &:focus {
+          outline: none;
+          border-color: #667eea;
+          background: white;
+          box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        &::placeholder {
+          color: #94a3b8;
+        }
+      }
     }
   }
 
@@ -763,6 +1019,12 @@ const goPPT = () => {
     }
   }
 
+  .outline-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
   .outline-actions {
     flex-direction: column;
 
@@ -826,6 +1088,12 @@ const goPPT = () => {
   animation: spin 1s linear infinite;
 }
 
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+</style>
+
 .processing-text {
   color: #475569;
   font-size: 1rem;
@@ -836,4 +1104,3 @@ const goPPT = () => {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
-</style>
