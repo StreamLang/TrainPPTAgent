@@ -160,6 +160,7 @@ async def stream_content_response(markdown_content: str):
 
 @app.post("/tools/aippt")
 async def aippt_content(request: AipptContentRequest):
+
     markdown_content = request.content
     return StreamingResponse(stream_content_response(markdown_content), media_type="text/plain")
 
