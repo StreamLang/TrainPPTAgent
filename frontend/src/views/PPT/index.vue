@@ -65,6 +65,14 @@
             <span class="progress-text">正在生成PPT内容，这可能需要几分钟时间...</span>
           </div>
           
+          <Button class="btn btn-secondary" :disabled="loading" @click="saveContent">
+            <span>保存内容</span>
+            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+              <polyline points="17,21 17,13 7,13 7,21"></polyline>
+              <polyline points="7,3 7,8 15,8"></polyline>
+            </svg>
+          </Button>
           <Button class="btn btn-primary" type="primary" :disabled="loading || !selectedTemplate" @click="createPPT()">
             <span>{{ loading ? '正在生成…' : '生成PPT' }}</span>
             <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -72,7 +80,7 @@
               <polyline points="12,6 12,12 16,14"></polyline>
             </svg>
           </Button>
-          <Button class="btn btn-secondary" :disabled="loading" @click="$router.back()">
+          <Button class="btn btn-secondary" :disabled="loading" @click="goBackToOutline()">
             <span>返回大纲</span>
             <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <polyline points="15,18 9,12 15,6"></polyline>
@@ -87,7 +95,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import api from '@/services'
@@ -98,6 +106,7 @@ import { useMainStore, useSlidesStore } from '@/store'
 import Button from '@/components/Button.vue'
 import ContentEditor from '@/components/ContentEditor.vue'
 import SessionManager from '@/utils/sessionManager'
+import message from '@/utils/message'
 
 const route = useRoute()
 const router = useRouter()
@@ -117,8 +126,28 @@ if (sessionIdFromQuery) {
   const storedData = SessionManager.getOutlineData(sessionIdFromQuery)
   if (storedData) {
     outlineData = storedData
-    // 可选：清除已使用的sessionStorage数据
-    // SessionManager.clearSessionData(sessionIdFromQuery, 'outline')
+  }
+  
+  // 检查是否有已保存的PPT数据
+  const savedPPTData = SessionManager.getPPTData(sessionIdFromQuery)
+  if (savedPPTData) {
+    // 加载已保存的PPT数据
+    slideStore.setSlides(savedPPTData.slides || [])
+    if (savedPPTData.theme) {
+      slideStore.setTheme(savedPPTData.theme)
+    }
+    console.log('已加载之前保存的PPT数据', savedPPTData.userSections)
+    
+    // 如果有用户填写的内容，需要在ContentEditor组件挂载后恢复
+    if (savedPPTData.userSections && savedPPTData.userSections.length > 0) {
+      // 使用nextTick确保ContentEditor组件已经挂载
+      nextTick(() => {
+        if (contentEditor.value) {
+          contentEditor.value.setSections(savedPPTData.userSections)
+          console.log('已恢复用户填写的内容', savedPPTData.userSections)
+        }
+      })
+    }
   }
 }
 
@@ -137,6 +166,68 @@ const materials = ref([])
 const handleContentChange = (sections: any[]) => {
   // 这里可以处理内容变化的逻辑
   console.log('内容已更新:', sections)
+  
+  // 不再自动保存，只记录内容变化
+  // 保存操作由手动保存和Ctrl+S快捷键触发
+}
+
+// 手动保存内容
+const saveContent = () => {
+  if (sessionIdFromQuery) {
+    // 获取用户填写的内容
+    const userSections = contentEditor.value ? contentEditor.value.getSections() : []
+    
+    const pptData = {
+      slides: slideStore.slides,
+      theme: slideStore.theme,
+      userSections: userSections // 保存用户填写的内容
+    }
+    // 保存时强制更新进度状态为'ppt'
+    SessionManager.storePPTData(pptData, sessionIdFromQuery, 'ppt')
+    console.log('内容已手动保存，进度状态更新为: ppt', userSections)
+    message.success('已缓存当前内容至本地')
+  }
+}
+
+// 设置快捷键监听
+const setupKeyboardShortcuts = () => {
+  const handleKeyDown = (event: KeyboardEvent) => {
+    // Ctrl+S 保存
+    if ((event.ctrlKey || event.metaKey) && event.key === 's') {
+      event.preventDefault() // 阻止浏览器默认保存行为
+      saveContent()
+    }
+  }
+
+  // 添加事件监听
+  window.addEventListener('keydown', handleKeyDown)
+
+  // 清理事件监听
+  onUnmounted(() => {
+    window.removeEventListener('keydown', handleKeyDown)
+  })
+}
+
+// 返回大纲页面
+const goBackToOutline = () => {
+  // 保存当前PPT数据
+  if (sessionIdFromQuery) {
+    const pptData = {
+      slides: slideStore.slides,
+      theme: slideStore.theme
+    }
+    // 返回大纲时也更新进度状态为'ppt'
+    SessionManager.storePPTData(pptData, sessionIdFromQuery, 'ppt')
+    console.log('PPT数据已保存，返回大纲页面，进度状态更新为: ppt')
+  }
+  
+  // 明确跳转到大纲页面，而不是使用router.back()
+  router.push({
+    name: 'Outline',
+    query: {
+      session_id: sessionIdFromQuery
+    }
+  })
 }
 
 const createPPT = async () => {
@@ -245,7 +336,7 @@ const createPPT = async () => {
             slides: slideStore.slides,
             theme: slideStore.theme
           }
-          SessionManager.storePPTData(pptData, sessionIdFromQuery)
+          SessionManager.storePPTData(pptData, sessionIdFromQuery, 'ppt')
           
           // 在PPT生成完成后再跳转到编辑器页面，使用正确的session_id
           router.push(`/editor?session_id=${sessionIdFromQuery}`)
@@ -330,6 +421,11 @@ const createPPT = async () => {
     console.error(e)
   }
 }
+
+// 页面加载时设置快捷键监听
+onMounted(() => {
+  setupKeyboardShortcuts()
+})
 </script>
 
 <style lang="scss" scoped>

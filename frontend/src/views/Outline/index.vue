@@ -30,6 +30,10 @@
               <span class="btn-icon">{{ isEditMode ? '👁️' : '✏️' }}</span>
               {{ isEditMode ? '预览模式' : '编辑模式' }}
             </button>
+            <button class="secondary-btn" @click="saveOutline" :disabled="!isEditMode">
+              <span class="btn-icon">💾</span>
+              保存大纲
+            </button>
             <button class="secondary-btn" @click="goBackToHome">
               <span class="btn-icon">↩️</span>
               返回首页
@@ -40,34 +44,11 @@
         <div class="outline-content">
           <div class="outline-editor">
             <div v-if="isEditMode">
-              <!-- 图片粘贴提示区域 -->
-              <div class="image-paste-section" @paste="handlePaste">
-                <div class="paste-hint">
-                  <span class="paste-icon">📋</span>
-                  <p>提示：您可以在此区域粘贴图片（Ctrl+V）</p>
-                  <small>粘贴的图片将自动转换为base64并关联到当前大纲</small>
-                </div>
-                
-                <!-- 图片预览区域 -->
-                <div v-if="pastedImages.length > 0" class="image-previews">
-                  <h4>已粘贴图片：</h4>
-                  <div class="preview-grid">
-                    <div v-for="(img, index) in pastedImages" :key="index" class="preview-item">
-                      <img :src="img.data" :alt="`粘贴图片${index + 1}`" class="preview-img" />
-                      <div class="preview-actions">
-                        <button @click="removeImage(index)" class="remove-btn">删除</button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
               <textarea
                 v-model="outline"
                 class="outline-textarea"
                 placeholder="在此编辑Markdown大纲内容..."
                 rows="20"
-                @paste="handlePaste"
               ></textarea>
             </div>
             <div v-else>
@@ -88,7 +69,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import message from '@/utils/message'
 import { marked } from 'marked'
@@ -114,12 +95,6 @@ const model = ref(outlineData.model)
 const outlineRef = ref<HTMLElement>()
 const isEditMode = ref(false)
 
-// 粘贴的图片数据
-const pastedImages = ref<Array<{data: string; type: string; name: string}>>([])
-
-// 大纲条目数据结构
-
-
 // 渲染Markdown为HTML
 const renderedOutline = computed(() => {
   return marked(outline.value)
@@ -133,62 +108,86 @@ const goBackToHome = () => {
   router.push({ name: 'Home' })
 }
 
-// 处理剪贴板粘贴事件
-const handlePaste = async (event: ClipboardEvent) => {
-  const clipboardItems = event.clipboardData?.items
-  if (!clipboardItems) return
 
-  for (const item of clipboardItems) {
-    if (item.type.startsWith('image/')) {
-      event.preventDefault()
-      
-      const blob = item.getAsFile()
-      if (blob) {
-        const reader = new FileReader()
-        reader.onload = (e) => {
-          const base64Data = e.target?.result as string
-          if (base64Data) {
-            pastedImages.value.push({
-              data: base64Data,
-              type: item.type,
-              name: `pasted-image-${Date.now()}.${item.type.split('/')[1]}`
-            })
-            message.success('图片已成功粘贴！')
-          }
-        }
-        reader.readAsDataURL(blob)
-      }
-      break
-    }
-  }
-}
 
-// 移除图片
-const removeImage = (index: number) => {
-  pastedImages.value.splice(index, 1)
-  message.info('图片已移除')
+
+// 保存大纲数据
+const saveOutline = () => {
+  const currentOutline = outline.value
+  
+  // 使用SessionManager存储outline数据
+  const sessionId = SessionManager.storeOutlineData({
+    outline: currentOutline,
+    language: language.value,
+    model: model.value
+  }, sessionIdFromQuery)
+  
+  message.success('已缓存当前内容至本地')
+  console.log('大纲数据已保存，sessionId:', sessionId)
 }
 
 const goPPT = () => {
   // 确保保存最新的编辑内容
-  const currentOutline = outline.value
-  
-  // 使用SessionManager存储outline数据（包含图片）
-  const sessionId = SessionManager.storeOutlineData({
-    outline: currentOutline,
-    language: language.value,
-    model: model.value,
-    images: pastedImages.value // 存储粘贴的图片
-  })
+  saveOutline()
   
   // 通过sessionId跳转到PPT页面
   router.push({
     name: 'PPT',
     query: {
-      session_id: sessionId
+      session_id: sessionIdFromQuery
     }
   })
 }
+
+// 设置自动保存和快捷键
+const setupAutoSave = () => {
+  if (!sessionIdFromQuery) return
+  
+  // 监听大纲内容变化，实现自动保存
+  let saveTimeout: number | null = null
+  const autoSave = () => {
+    if (saveTimeout) {
+      clearTimeout(saveTimeout)
+    }
+    saveTimeout = setTimeout(() => {
+      if (outline.value.trim() && isEditMode.value) {
+        saveOutline()
+        console.log('大纲内容已自动保存')
+      }
+    }, 3000) // 3秒后自动保存
+  }
+  
+  // 设置Ctrl+S快捷键
+  const handleKeyDown = (event: KeyboardEvent) => {
+    // Ctrl+S 保存
+    if ((event.ctrlKey || event.metaKey) && event.key === 's') {
+      event.preventDefault() // 阻止浏览器默认保存行为
+      saveOutline()
+    }
+  }
+  
+  // 监听大纲内容变化
+  const unwatch = watch(() => outline.value, autoSave, { deep: true })
+  
+  // 添加快捷键监听
+  window.addEventListener('keydown', handleKeyDown)
+  
+  // 页面卸载时清除监听
+  onUnmounted(() => {
+    if (saveTimeout) {
+      clearTimeout(saveTimeout)
+    }
+    unwatch()
+    window.removeEventListener('keydown', handleKeyDown)
+  })
+}
+
+// 页面加载时设置自动保存
+onMounted(() => {
+  // 页面加载时自动进入编辑模式
+  isEditMode.value = true
+  setupAutoSave()
+})
 </script>
 
 <style lang="scss" scoped>
@@ -788,103 +787,9 @@ const goPPT = () => {
         }
       }
 
-      /* 图片粘贴区域样式 */
-      .image-paste-section {
-        margin-bottom: 1.5rem;
-        padding: 1.5rem;
-        background: #f8fafc;
-        border: 2px dashed #cbd5e1;
-        border-radius: 1rem;
-        text-align: center;
-        transition: all 0.3s ease;
 
-        &:hover {
-          border-color: #667eea;
-          background: #f1f5f9;
-        }
 
-        .paste-hint {
-          color: #64748b;
 
-          .paste-icon {
-            font-size: 2rem;
-            display: block;
-            margin-bottom: 0.5rem;
-          }
-
-          p {
-            margin: 0 0 0.5rem 0;
-            font-weight: 500;
-          }
-
-          small {
-            font-size: 0.875rem;
-            opacity: 0.8;
-          }
-        }
-      }
-
-      /* 图片预览区域样式 */
-      .image-previews {
-        margin-top: 1.5rem;
-        padding-top: 1.5rem;
-        border-top: 1px solid #e2e8f0;
-
-        h4 {
-          margin: 0 0 1rem 0;
-          color: #334155;
-          font-size: 1rem;
-          font-weight: 600;
-        }
-
-        .preview-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-          gap: 1rem;
-        }
-
-        .preview-item {
-          position: relative;
-          background: white;
-          border: 1px solid #e2e8f0;
-          border-radius: 0.5rem;
-          overflow: hidden;
-          transition: all 0.3s ease;
-
-          &:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-          }
-
-          .preview-img {
-            width: 100%;
-            height: 80px;
-            object-fit: cover;
-            display: block;
-          }
-
-          .preview-actions {
-            padding: 0.5rem;
-            background: rgba(255, 255, 255, 0.9);
-            text-align: center;
-
-            .remove-btn {
-              background: #ef4444;
-              color: white;
-              border: none;
-              padding: 0.25rem 0.5rem;
-              border-radius: 0.25rem;
-              font-size: 0.75rem;
-              cursor: pointer;
-              transition: all 0.3s ease;
-
-              &:hover {
-                background: #dc2626;
-              }
-            }
-          }
-        }
-      }
 
       .outline-textarea {
         width: 100%;

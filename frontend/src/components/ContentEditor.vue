@@ -307,7 +307,10 @@ const getMaterialName = (materialId: string) => {
 
 // 暴露方法给父组件
 defineExpose({
-  getSections: () => sections.value
+  getSections: () => sections.value,
+  setSections: (newSections: any[]) => {
+    sections.value = newSections
+  }
 })
 </script>
 

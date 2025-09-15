@@ -36,7 +36,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useMainStore, useSlidesStore } from '@/store'
@@ -88,10 +88,43 @@ const restoreSessionData = () => {
 
 onMounted(() => {
   restoreSessionData()
+  setupAutoSave()
 })
 
 useGlobalHotkey()
 usePasteEvent()
+
+// 设置自动保存
+const setupAutoSave = () => {
+  const sessionId = route.query.session_id as string
+  if (!sessionId) return
+  
+  // 监听幻灯片数据变化
+  watch(() => slidesStore.slides, () => {
+    saveSessionData(sessionId)
+  }, { deep: true, immediate: true })
+  
+  // 监听主题变化
+  watch(() => slidesStore.theme, () => {
+    saveSessionData(sessionId)
+  }, { deep: true, immediate: true })
+  
+  // 页面卸载前保存
+  window.addEventListener('beforeunload', () => {
+    saveSessionData(sessionId)
+  })
+}
+
+// 保存session数据
+const saveSessionData = (sessionId: string) => {
+  const editorData = {
+    slides: slidesStore.slides,
+    theme: slidesStore.theme
+  }
+  // 在Editor页面保存数据时，强制设置进度为'editor'
+  SessionManager.storeEditorData(editorData, sessionId, 'editor')
+  console.log('Editor数据已保存，进度: editor')
+}
 </script>
 
 <style lang="scss" scoped>

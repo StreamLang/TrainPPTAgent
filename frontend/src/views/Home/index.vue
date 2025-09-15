@@ -78,6 +78,35 @@
           </div>
         </div>
       </div>
+
+      <!-- History Section -->
+      <div v-if="historySessions.length > 0" class="history-section">
+        <h3 class="section-title">📚 历史记录</h3>
+        <div class="history-grid">
+          <div 
+            v-for="session in historySessions" 
+            :key="session.sessionId" 
+            class="history-item"
+            @click="continueSession(session)"
+          >
+            <div class="history-content">
+              <div class="history-title">
+                {{ getSessionTitle(session.data.outline) || '未命名PPT' }}
+              </div>
+              <div class="history-meta">
+                <span class="history-time">{{ formatTime(session.data.updatedAt || session.sessionId) }}</span>
+                <span class="history-language">{{ session.data.language }}</span>
+                <span class="history-progress" :class="`progress-${SessionManager.getSessionProgress(session.sessionId)}`">
+                  {{ getProgressLabel(SessionManager.getSessionProgress(session.sessionId)) }}
+                </span>
+              </div>
+            </div>
+            <div class="history-action">
+              <span class="continue-btn">{{ getContinueButtonText(SessionManager.getSessionProgress(session.sessionId)) }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Processing Modal -->
@@ -122,10 +151,13 @@ const recommends = ref([
   '公司年会策划方案',
 ])
 
+const historySessions = ref<Array<{sessionId: string, data: any}>>([])
+
 onMounted(() => {
   setTimeout(() => {
     inputRef.value?.focus()
   }, 500)
+  loadHistorySessions()
 })
 
 const setKeyword = (value: string) => {
@@ -210,6 +242,71 @@ const createOutline = async () => {
   } finally {
     loading.value = false
   }
+}
+
+const loadHistorySessions = () => {
+  historySessions.value = SessionManager.getAllSessions()
+}
+
+const continueSession = (session: {sessionId: string, data: any}) => {
+  const progress = SessionManager.getSessionProgress(session.sessionId)
+  
+  // 根据进度跳转到不同的页面
+  const routeConfig: Record<string, {name: string, query: any}> = {
+    'outline': { name: 'Outline', query: { session_id: session.sessionId } },
+    'ppt': { name: 'PPT', query: { session_id: session.sessionId } },
+    'editor': { name: 'Editor', query: { session_id: session.sessionId } }
+  }
+  
+  const targetRoute = routeConfig[progress] || routeConfig.outline
+  router.push(targetRoute)
+}
+
+const getSessionTitle = (outline: string): string => {
+  // 从大纲内容中提取第一行作为标题
+  const firstLine = outline.split('\n')[0]?.trim()
+  if (firstLine && firstLine.length > 0 && firstLine.length < 50) {
+    return firstLine
+  }
+  return '未命名PPT'
+}
+
+const formatTime = (timestamp: string | number): string => {
+  const date = new Date(typeof timestamp === 'string' ? parseInt(timestamp) : timestamp)
+  const now = new Date()
+  const diffMs = now.getTime() - date.getTime()
+  const diffMins = Math.floor(diffMs / (1000 * 60))
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+  
+  if (diffMins < 1) return '刚刚'
+  if (diffMins < 60) return `${diffMins}分钟前`
+  if (diffHours < 24) return `${diffHours}小时前`
+  if (diffDays < 7) return `${diffDays}天前`
+  
+  return date.toLocaleDateString('zh-CN', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric'
+  })
+}
+
+const getProgressLabel = (progress: string): string => {
+  const progressLabels: Record<string, string> = {
+    'outline': '大纲编辑',
+    'ppt': '模板选择',
+    'editor': '最终编辑'
+  }
+  return progressLabels[progress] || '大纲编辑'
+}
+
+const getContinueButtonText = (progress: string): string => {
+  const buttonTexts: Record<string, string> = {
+    'outline': '继续编辑',
+    'ppt': '选择模板',
+    'editor': '最终编辑'
+  }
+  return buttonTexts[progress] || '继续编辑'
 }
 </script>
 
@@ -476,6 +573,115 @@ const createOutline = async () => {
         color: #475569;
         font-size: 0.9rem;
       }
+    }
+  }
+}
+
+/* History Section */
+.history-section {
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 1px solid #e2e8f0;
+
+  .section-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    color: #334155;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .history-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .history-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.75rem;
+    padding: 1rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+
+    &:hover {
+      background: #ffffff;
+      border-color: #667eea;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+    }
+  }
+
+  .history-content {
+    flex: 1;
+  }
+
+  .history-title {
+    font-weight: 500;
+    color: #334155;
+    margin-bottom: 0.25rem;
+    font-size: 0.95rem;
+  }
+
+  .history-meta {
+    display: flex;
+    gap: 1rem;
+    font-size: 0.8rem;
+    color: #64748b;
+  }
+
+  .history-time {
+    font-size: 0.8rem;
+  }
+
+  .history-language {
+    background: #e2e8f0;
+    padding: 0.2rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.7rem;
+  }
+
+  .history-progress {
+    padding: 0.2rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.7rem;
+    font-weight: 500;
+  }
+
+  .progress-outline {
+    background: #dbeafe;
+    color: #1e40af;
+  }
+
+  .progress-ppt {
+    background: #fef3c7;
+    color: #92400e;
+  }
+
+  .progress-editor {
+    background: #dcfce7;
+    color: #166534;
+  }
+
+  .history-action {
+    .continue-btn {
+      background: #667eea;
+      color: white;
+      padding: 0.5rem 1rem;
+      border-radius: 0.5rem;
+      font-size: 0.8rem;
+      font-weight: 500;
+      transition: all 0.3s ease;
+    }
+
+    .history-item:hover .continue-btn {
+      background: #5a67d8;
     }
   }
 }

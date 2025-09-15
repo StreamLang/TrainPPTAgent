@@ -9,7 +9,7 @@ import os
 import litellm
 from google.adk.models.lite_llm import LiteLlm
 from dotenv import load_dotenv
-litellm._turn_on_debug()
+# litellm._turn_on_debug()
 
 # 禁用工具调用功能
 litellm.enable_auto_tool_choice = False

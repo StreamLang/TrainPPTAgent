@@ -62,10 +62,9 @@ class A2AContentClientWrapper:
             except Exception as e:
                 self.logger.error(f'获取 AgentCard 失败: {e}', exc_info=True)
                 raise RuntimeError('无法获取 agent card，无法继续运行。') from e
-    async def generate(self, user_question: str, metadata: str = "", language="English", user_id="") -> None:
+    async def generate(self, user_question: str,  language="English", user_id="") -> None:
         """
         user_question: 用户问题
-        metadata: 用户提供的额外信息（如素材和内容）
         history： 历史对话消息
         user_id:  用户的id
         执行一次对话流程
@@ -79,14 +78,7 @@ class A2AContentClientWrapper:
 
             # === 多轮对话 示例 ===
             self.logger.info("开始进行对话...")
-            
-            # 解析metadata
-            metadata_dict = {}
-            if metadata:
-                try:
-                    metadata_dict = json.loads(metadata)
-                except json.JSONDecodeError:
-                    self.logger.warning("无法解析metadata JSON")
+
             
             message_data: dict[str, Any] = {
                 'message': {
@@ -95,9 +87,7 @@ class A2AContentClientWrapper:
                     'messageId': uuid4().hex,
                     'metadata': {
                         'language': language, 
-                        "user_id": user_id,
-                        "materials": metadata_dict.get("materials", []),
-                        "sections": metadata_dict.get("sections", [])
+                        "user_id": user_id
                     },
                     'contextId': self.session_id,
                 },

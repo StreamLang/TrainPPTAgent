@@ -41,8 +41,6 @@ class AipptRequest(BaseModel):
 
 class AipptContentRequest(BaseModel):
     content: str
-    materials: list = []  # 用户上传的素材
-    sections: list = []   # 用户填充的内容
 
 class MaterialItem(BaseModel):
     id: str
@@ -99,7 +97,7 @@ async def aippt_outline(request: AipptRequest):
     assert request.stream, "只支持流式的返回大纲"
     return StreamingResponse(stream_agent_response(request.content), media_type="text/plain")
 
-async def stream_content_response(markdown_content: str, materials: list = [], sections: list = []):
+async def stream_content_response(markdown_content: str):
     """  # PPT的正文内容生成"""
     try:
         # 用正则找到第一个一级标题及之后的内容
@@ -110,17 +108,12 @@ async def stream_content_response(markdown_content: str, materials: list = [], s
         else:
             result = markdown_content
         print(f"用户输入的markdown大纲是：{result}")
-        
-        # 将用户提供的素材和内容信息添加到metadata中
-        metadata = {
-            "materials": materials,
-            "sections": sections
-        }
+
         
         content_wrapper = A2AContentClientWrapper(session_id=uuid.uuid4().hex, agent_url=CONTENT_API)
         has_data = False
         
-        async for chunk_data in content_wrapper.generate(result, metadata=json.dumps(metadata)):
+        async for chunk_data in content_wrapper.generate(result ):
             # 检查chunk_data是否为空或无效
             if not chunk_data or not isinstance(chunk_data, dict):
                 continue
@@ -154,9 +147,7 @@ async def stream_content_response(markdown_content: str, materials: list = [], s
 @app.post("/tools/aippt")
 async def aippt_content(request: AipptContentRequest):
     markdown_content = request.content
-    materials = request.materials
-    sections = request.sections
-    return StreamingResponse(stream_content_response(markdown_content, materials, sections), media_type="text/plain")
+    return StreamingResponse(stream_content_response(markdown_content), media_type="text/plain")
 
 @app.post("/api/upload_material")
 async def upload_material(

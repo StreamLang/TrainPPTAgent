@@ -18,20 +18,6 @@ interface AIPPTPayload {
 
 interface AIPPTContentPayload {
   content: string
-  materials?: Array<{
-    id: string
-    name: string
-    description: string
-  }>
-  sections?: Array<{
-    id: string
-    title: string
-    fields: Array<{
-      title: string
-      content: string
-      materials: string[]
-    }>
-  }>
 }
 
 interface AIWritingPayload {
@@ -71,9 +57,7 @@ export default {
     content,
     language,
     style,
-    model,
-    materials,
-    sections
+    model
   }: AIPPTContentPayload & { language: string; style: string; model: string }): Promise<any> {
     return fetch(`${SERVER_URL}/tools/aippt`, {
       method: 'POST',
@@ -85,9 +69,7 @@ export default {
         language,
         model,
         style,
-        stream: true,
-        materials: materials || [],
-        sections: sections || []
+        stream: true
       }),
     })
   },
