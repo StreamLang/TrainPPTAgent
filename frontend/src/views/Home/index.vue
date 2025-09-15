@@ -43,6 +43,21 @@
           </div>
         </div>
 
+        <!-- Quick Access -->
+        <div class="quick-access-section">
+          <h3 class="section-title">⚡ 快速访问</h3>
+          <div class="quick-access-grid">
+            <button class="quick-access-item" @click="goToMarkdownEditor">
+              <span class="access-icon">📝</span>
+              <span class="access-label">Markdown 编辑器</span>
+            </button>
+            <button class="quick-access-item" @click="goToEditor">
+              <span class="access-icon">✏️</span>
+              <span class="access-label">空白演示文稿</span>
+            </button>
+          </div>
+        </div>
+
         <!-- Recommendations -->
         <div class="recommendations-section">
           <h3 class="section-title">💡 推荐主题</h3>
@@ -242,6 +257,27 @@ const createOutline = async () => {
   } finally {
     loading.value = false
   }
+}
+
+// 添加跳转到 Markdown 编辑器的方法
+const goToMarkdownEditor = () => {
+  router.push('/markdown')
+}
+
+// 添加跳转到空白编辑器的方法
+const goToEditor = () => {
+  // 创建一个新的空会话
+  const sessionId = SessionManager.storeOutlineData({
+    outline: '',
+    language: '中文',
+    model: 'qwen3-235b'
+  })
+  
+  // 直接跳转到编辑器页面
+  router.push({
+    name: 'Editor',
+    query: { session_id: sessionId }
+  })
 }
 
 const loadHistorySessions = () => {
@@ -479,6 +515,57 @@ const getContinueButtonText = (progress: string): string => {
           font-size: 1.1rem;
         }
       }
+    }
+  }
+}
+
+/* Quick Access Section */
+.quick-access-section {
+  margin-bottom: 2rem;
+
+  .section-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    color: #334155;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .quick-access-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+  }
+
+  .quick-access-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 1.5rem 1rem;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.75rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+
+    &:hover {
+      background: #667eea;
+      color: white;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+
+    .access-icon {
+      font-size: 1.5rem;
+    }
+
+    .access-label {
+      font-weight: 500;
+      font-size: 0.95rem;
     }
   }
 }
@@ -751,7 +838,8 @@ const getContinueButtonText = (progress: string): string => {
     gap: 0.5rem;
   }
 
-  .recommendations-grid {
+  .recommendations-grid,
+  .quick-access-grid {
     grid-template-columns: 1fr;
   }
 

@@ -2,6 +2,7 @@ import asyncio
 import json
 import re
 import os
+import sys
 import dotenv
 from fastapi import FastAPI, UploadFile, File, Form
 from pydantic import BaseModel
@@ -9,7 +10,6 @@ from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 import uuid
-import httpx
 from a2a.client import A2AClient
 from a2a.types import (
     MessageSendParams,
@@ -18,7 +18,18 @@ from a2a.types import (
 )
 from outline_client import A2AOutlineClientWrapper
 from content_client import A2AContentClientWrapper
+# 添加当前目录到Python路径
 dotenv.load_dotenv()
+
+# 动态导入aippt_rest_router
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+try:
+    from tools.aippt_rest import router as aippt_rest_router
+except ImportError:
+    # 如果导入失败，尝试其他方式
+    tools_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "tools")
+    sys.path.append(tools_path)
+    from aippt_rest import router as aippt_rest_router
 
 OUTLINE_API = os.environ["OUTLINE_API"]
 CONTENT_API = os.environ["CONTENT_API"]
@@ -32,6 +43,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# 挂载aippt_rest路由
+app.include_router(aippt_rest_router, prefix="/tools", tags=["aippt_rest"])
 
 class AipptRequest(BaseModel):
     content: str
