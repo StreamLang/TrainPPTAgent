@@ -73,18 +73,52 @@
         </div>
       </div>
     </div>
+
     
-    <div class="instructions">
-      <h3>使用说明</h3>
-      <ul>
-        <li>在左侧编辑 Markdown 内容</li>
-        <li>右侧会实时预览渲染效果</li>
-        <li>选择一个模板用于生成PPT</li>
-        <li>点击"保存并生成PPT"按钮将内容发送到后端处理</li>
-        <li>系统会使用 aippt_rest 创建异步任务并获取 task_id</li>
-        <li>然后使用 aippt_rest_result 轮询获取任务结果</li>
-        <li>处理完成后自动跳转到PPT展示页面，使用与PPT页面相同的逻辑渲染PPT</li>
-      </ul>
+    <!-- Markdown规范说明 -->
+    <div class="markdown-guide">
+      <h3>Markdown编写规范</h3>
+      <div class="guide-content">
+        <p>为了更好地生成PPT内容，建议按照以下规范编写Markdown：</p>
+        
+        <h4>基本结构</h4>
+        <ul>
+          <li>使用 <code># 标题</code> 作为演示文稿的主标题</li>
+          <li>使用 <code>## 章节标题</code> 作为章节标题</li>
+          <li>使用 <code>### 子章节标题</code> 作为具体内容页标题</li>
+          <li>使用 <code>- 列表项</code> 来表示具体内容项</li>
+        </ul>
+        
+        <h4>详细内容说明（推荐）</h4>
+        <p>在标题或列表项后添加以 <code>@</code> 符号开头的行，可以为PPT提供更详细的说明内容：</p>
+        <ul>
+          <li>在 <code># 主标题</code> 后添加 <code>@描述</code> 作为封面页副标题</li>
+          <li>在 <code>## 章节标题</code> 后添加 <code>@描述</code> 作为章节过渡页说明</li>
+          <li>在 <code>### 子章节标题</code> 后添加 <code>@描述</code> 作为内容页说明</li>
+          <li>在 <code>- 列表项</code> 后添加 <code>@描述</code> 作为该项目的详细说明</li>
+        </ul>
+        
+        <h4>示例格式</h4>
+        <pre><code># 2025科技前沿动态
+@探索2025年科技领域的最新突破与发展趋势
+
+## 人工智能新突破
+@人工智能在2025年取得了重大进展，从大语言模型到量子计算，多个领域都有重要突破
+
+### 大语言模型的进化
+@大语言模型在2025年实现了质的飞跃，不仅在性能上大幅提升，还在多模态处理和推理能力方面取得了重要进展
+
+- 多模态大模型实现文本、图像、音频的深度融合理解
+@这些模型能够同时处理和理解多种类型的数据，为更复杂的AI应用奠定了基础
+
+- 参数效率优化，降低训练成本的同时提升性能
+@通过创新的架构设计和训练方法，新一代模型在保持高性能的同时显著降低了计算资源需求
+
+- 自主推理和规划能力增强，接近人类思维方式
+@模型现在能够进行更复杂的逻辑推理和长期规划，为通用人工智能的发展迈出了重要一步</code></pre>
+        
+        <p class="tip">💡 <strong>提示：</strong>使用 <code>@</code> 符号添加的详细说明将直接显示在生成的PPT中，无需等待AI生成内容，可大幅提升生成速度。</p>
+      </div>
     </div>
   </div>
 </template>
@@ -532,6 +566,63 @@ export default {
 
 .instructions li {
   margin: 8px 0;
+}
+
+/* Markdown规范说明样式 */
+.markdown-guide {
+  margin-top: 20px;
+  padding: 15px;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+  border: 1px solid #e9ecef;
+}
+
+.markdown-guide h3 {
+  margin-top: 0;
+  color: #333;
+  border-bottom: 1px solid #dee2e6;
+  padding-bottom: 8px;
+}
+
+.markdown-guide h4 {
+  margin: 15px 0 10px 0;
+  color: #495057;
+}
+
+.markdown-guide ul {
+  padding-left: 20px;
+}
+
+.markdown-guide li {
+  margin: 5px 0;
+}
+
+.markdown-guide code {
+  background-color: #e9ecef;
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-family: 'Courier New', Courier, monospace;
+}
+
+.markdown-guide pre {
+  background-color: #e9ecef;
+  padding: 12px;
+  border-radius: 4px;
+  overflow-x: auto;
+  margin: 10px 0;
+}
+
+.markdown-guide pre code {
+  background: none;
+  padding: 0;
+}
+
+.markdown-guide .tip {
+  background-color: #d1ecf1;
+  border: 1px solid #bee5eb;
+  border-radius: 4px;
+  padding: 10px;
+  margin-top: 15px;
 }
 
 @media (max-width: 768px) {
