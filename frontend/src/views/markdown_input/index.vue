@@ -1,49 +1,5 @@
 <template>
   <div class="markdown-editor-container">
-    <div class="editor-header">
-      <h2>Markdown 编辑器</h2>
-      <div class="header-controls">
-        <!-- 添加模型选择 -->
-        <select v-model="selectedModel" class="model-select">
-          <option value="qwen3-235b">Qwen3-235b</option>
-          <option value="gpt-4">GPT-4</option>
-          <option value="claude-3">Claude-3</option>
-        </select>
-        <button 
-          @click="handleSave" 
-          :disabled="isSaving"
-          class="save-button"
-        >
-          {{ isSaving ? '生成中...' : '保存并生成PPT' }}
-        </button>
-      </div>
-    </div>
-    
-    <div class="editor-columns">
-      <div class="editor-area">
-        <textarea
-          v-model="markdownContent"
-          placeholder="输入Markdown内容...
-示例格式：
-# 我的演示文稿
-
-## 第一页标题
-
-这是第一页的内容
-
-## 第二页标题
-
-这是第二页的内容"
-          class="md-editor"
-          @input="updatePreview"
-        ></textarea>
-      </div>
-      <div 
-        class="preview-area"
-        v-html="renderedMarkdown"
-      ></div>
-    </div>
-    
     <!-- 模板选择区域 -->
     <div class="template-selection" v-if="templates.length > 0">
       <h3>选择模板</h3>
@@ -73,6 +29,40 @@
         </div>
       </div>
     </div>
+    <div class="editor-header">
+      <h2>PPT文本</h2>
+      <div class="header-controls">
+        <!-- 添加模型选择 -->
+<!--        <select v-model="selectedModel" class="model-select">
+          <option value="qwen3-235b">Qwen3-235b</option>
+          <option value="gpt-4">GPT-4</option>
+          <option value="claude-3">Claude-3</option>
+        </select>-->
+        <button 
+          @click="handleSave" 
+          :disabled="isSaving"
+          class="save-button"
+        >
+          {{ isSaving ? '生成中...' : '生成PPT' }}
+        </button>
+      </div>
+    </div>
+    
+    <div class="editor-columns">
+      <div class="editor-area">
+        <textarea
+          v-model="markdownContent"
+          placeholder="输入Markdown格式的文本,可参考页面底部说明文档"
+          class="md-editor"
+          @input="updatePreview"
+        ></textarea>
+      </div>
+      <div 
+        class="preview-area"
+        v-html="renderedMarkdown"
+      ></div>
+    </div>
+
 
     
     <!-- Markdown规范说明 -->
@@ -271,7 +261,8 @@ export default {
         this.loading = false
         this.isSaving = false
         this.router.push(`/editor?session_id=${sessionId}`)
-      } catch (error) {
+      }
+      catch (error) {
         console.error('渲染PPT失败:', error)
         this.loading = false
         this.isSaving = false

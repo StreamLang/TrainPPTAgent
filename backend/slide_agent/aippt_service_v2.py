@@ -1,19 +1,18 @@
+import logging
+import os
+import sys
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, Optional
-import logging
-import json
-import os
-import sys
 
 # 添加项目根目录到Python路径
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from slide_agent.slide_agent.utils import parse_markdown_to_slides
-# 导入新的高级解析器
-from slide_agent.slide_agent.advanced_parser import parse_markdown_to_slides_advanced
+from slide_agent.utils import parse_markdown_to_slides
+from slide_agent.advanced_parser import parse_markdown_to_slides_advanced
 
 logger = logging.getLogger(__name__)
+
 
 class AIPPTTaskManager:
     def __init__(self):
@@ -32,6 +31,7 @@ class AIPPTTaskManager:
 
     def start_processing(self, task_id: str, markdown_content: str, model: str = "qwen3-235b"):
         """启动异步处理任务"""
+
         def _process():
             try:
                 # 使用实际的PPT生成逻辑，传递模型参数
@@ -66,12 +66,13 @@ class AIPPTTaskManager:
             else:
                 # 使用原始解析器
                 slide_structure = parse_markdown_to_slides(markdown)
-            
+
             # 直接返回幻灯片结构，与前端PPT页面使用相同的数据结构
             return slide_structure
         except Exception as e:
             logger.error(f"PPT generation failed: {str(e)}")
             raise
+
 
 # 全局单例
 task_manager = AIPPTTaskManager()
