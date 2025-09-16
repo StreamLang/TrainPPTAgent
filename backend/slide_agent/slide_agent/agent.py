@@ -3,9 +3,9 @@ from google.adk.agents.callback_context import CallbackContext
 from google.adk.agents.sequential_agent import SequentialAgent
 from google.genai import types  # 用于在回调里短路并给用户返回消息
 
+from .advanced_parser import parse_markdown_to_slides_advanced
 from .sub_agents.ppt_writer.agent import ppt_generator_loop_agent
-from .utils import parse_markdown_to_slides  # 复用你已有的解析函数
-
+# from .utils import parse_markdown_to_slides  # 复用你已有的解析函数
 # 在模块顶部加载环境变量
 load_dotenv('.env')
 
@@ -65,7 +65,7 @@ def before_agent_callback(callback_context: CallbackContext):
         )
     try:
         # 解析Markdown时传入用户提供的章节内容
-        slides = parse_markdown_to_slides(md_content)
+        slides = parse_markdown_to_slides_advanced(md_content)
     except Exception:
         # 真解析出异常：直接告诉用户不合法并短路
         return types.Content(

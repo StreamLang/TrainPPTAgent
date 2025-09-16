@@ -10,6 +10,8 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from slide_agent.slide_agent.utils import parse_markdown_to_slides
+# 导入新的高级解析器
+from slide_agent.slide_agent.advanced_parser import parse_markdown_to_slides_advanced
 
 logger = logging.getLogger(__name__)
 
@@ -57,8 +59,13 @@ class AIPPTTaskManager:
     def _generate_ppt(self, markdown: str, model: str = "qwen3-235b") -> dict:
         """实际的PPT生成逻辑"""
         try:
-            # 解析Markdown为幻灯片结构
-            slide_structure = parse_markdown_to_slides(markdown)
+            # 检查Markdown中是否包含@符号，如果有则使用高级解析器
+            if '@' in markdown:
+                # 使用高级解析器，直接从Markdown中提取详细内容说明
+                slide_structure = parse_markdown_to_slides_advanced(markdown)
+            else:
+                # 使用原始解析器
+                slide_structure = parse_markdown_to_slides(markdown)
             
             # 直接返回幻灯片结构，与前端PPT页面使用相同的数据结构
             return slide_structure
