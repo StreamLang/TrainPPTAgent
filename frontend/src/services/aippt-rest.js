@@ -8,14 +8,14 @@ export const generateAIPPT = async (markdown, model = 'qwen3-235b') => {
     model
   })
   return {
-    task_id: response.data.task_id,
-    status: response.data.status
+    task_id: response.task_id,
+    status: response.status
   }
 }
 
 export const getAIPPTResult = async (taskId) => {
   const response = await axios.get(`${API_BASE}/aippt_rest_result/${taskId}`)
-  return response.data
+  return response
 }
 
 // 添加请求拦截器处理错误
