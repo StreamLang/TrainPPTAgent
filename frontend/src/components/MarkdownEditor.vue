@@ -2,13 +2,21 @@
   <div class="markdown-editor-container">
     <div class="editor-header">
       <h2>Markdown 编辑器</h2>
-      <button 
-        @click="handleSave" 
-        :disabled="isSaving"
-        class="save-button"
-      >
-        {{ isSaving ? '生成中...' : '保存并生成PPT' }}
-      </button>
+      <div class="header-controls">
+        <!-- 添加模型选择 -->
+        <select v-model="selectedModel" class="model-select">
+          <option value="qwen3-235b">Qwen3-235b</option>
+          <option value="gpt-4">GPT-4</option>
+          <option value="claude-3">Claude-3</option>
+        </select>
+        <button 
+          @click="handleSave" 
+          :disabled="isSaving"
+          class="save-button"
+        >
+          {{ isSaving ? '生成中...' : '保存并生成PPT' }}
+        </button>
+      </div>
     </div>
     
     <div class="editor-columns">
@@ -73,7 +81,9 @@
         <li>右侧会实时预览渲染效果</li>
         <li>选择一个模板用于生成PPT</li>
         <li>点击"保存并生成PPT"按钮将内容发送到后端处理</li>
-        <li>系统会轮询处理状态，完成后自动跳转到PPT展示页面</li>
+        <li>系统会使用 aippt_rest 创建异步任务并获取 task_id</li>
+        <li>然后使用 aippt_rest_result 轮询获取任务结果</li>
+        <li>处理完成后自动跳转到PPT展示页面，使用与PPT页面相同的逻辑渲染PPT</li>
       </ul>
     </div>
   </div>
@@ -82,14 +92,23 @@
 <script>
 import { marked } from 'marked'
 import { useRouter } from 'vue-router'
+import { generateAIPPT, getAIPPTResult } from '@/services/aippt-rest'
+import api from '@/services'
+import useAIPPT from '@/hooks/useAIPPT'
+import { useSlidesStore } from '@/store'
 
 export default {
   name: 'MarkdownEditor',
   setup() {
     const router = useRouter()
+    const slidesStore = useSlidesStore()
+    // 使用AIPPT hook来处理模板应用
+    const { AIPPTGenerator } = useAIPPT()
     
     return {
-      router
+      router,
+      slidesStore,
+      AIPPTGenerator
     }
   },
   data() {
@@ -97,7 +116,8 @@ export default {
       markdownContent: localStorage.getItem('markdownContent') || '',
       renderedMarkdown: '',
       isSaving: false,
-      pollInterval: null,
+      // 模型选择相关数据
+      selectedModel: 'qwen3-235b', // 默认模型
       // 模板相关数据
       templates: [
         { name: '红色通用', id: 'template_1', cover: '/api/data/template_1.jpg' },
@@ -127,94 +147,65 @@ export default {
       try {
         this.isSaving = true
         
-        // 调用后端API生成PPT
-        const response = await fetch('/api/tools/aippt_rest', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            markdown: this.markdownContent
-          }),
-        })
+        // 使用 aippt_rest 创建异步任务并获取 task_id
+        const taskResponse = await generateAIPPT(this.markdownContent, this.selectedModel)
         
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`)
+        if (taskResponse.status === 'processing') {
+          // 异步处理，轮询获取结果
+          const taskId = taskResponse.task_id
+          let result = null
+          let attempts = 0
+          const maxAttempts = 30 // 最多尝试30次，每次间隔2秒，总共60秒超时
+          
+          while (attempts < maxAttempts) {
+            attempts++
+            // 等待2秒后查询结果
+            await new Promise(resolve => setTimeout(resolve, 2000))
+            
+            // 使用 aippt_rest_result 获取任务结果
+            const taskResult = await getAIPPTResult(taskId)
+            
+            if (taskResult.status === 'completed') {
+              result = taskResult
+              break
+            } else if (taskResult.status === 'failed') {
+              throw new Error(taskResult.error || 'PPT生成失败')
+            }
+            // 如果还在处理中，继续轮询
+          }
+          
+          if (!result) {
+            throw new Error('PPT生成超时')
+          }
+          
+          // 生成成功，直接跳转到output页面
+          this.isSaving = false
+          
+          // 生成一个临时的session_id
+          const sessionId = 'session_' + Date.now()
+          
+          // 将结果存储到本地存储中，供output页面使用
+          localStorage.setItem(`pptResult_${sessionId}`, JSON.stringify({
+            ...result.result,
+            template: this.selectedTemplate, // 传递选中的模板
+            model: this.selectedModel // 传递选中的模型
+          }))
+          
+          // 跳转到output页面进行展示
+          this.router.push({
+            path: '/ppt/output',
+            query: { session_id: sessionId }
+          })
+        } else if (taskResponse.status === 'failed') {
+          // 生成失败
+          this.isSaving = false
+          alert('PPT生成失败: ' + (taskResponse.error || '未知错误'))
         }
-        
-        const data = await response.json()
-        const taskId = data.task_id
-        
-        if (!taskId) {
-          throw new Error('未能获取任务ID')
-        }
-        
-        // 轮询检查任务状态
-        this.pollTaskStatus(taskId)
       } catch (error) {
         console.error('生成PPT失败:', error)
         alert('生成PPT失败: ' + error.message)
         this.isSaving = false
       }
-    },
-    
-    pollTaskStatus(taskId) {
-      // 清除之前的轮询（如果有的话）
-      if (this.pollInterval) {
-        clearInterval(this.pollInterval)
-      }
-      
-      // 开始轮询
-      this.pollInterval = setInterval(async () => {
-        try {
-          const response = await fetch(`/api/tools/aippt_result?task_id=${taskId}`)
-          
-          if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`)
-          }
-          
-          const data = await response.json()
-          
-          if (data.status === 'completed') {
-            // 任务完成，跳转到output页面
-            clearInterval(this.pollInterval)
-            this.isSaving = false
-            
-            // 生成一个临时的session_id
-            const sessionId = 'session_' + Date.now()
-            
-            // 将结果存储到本地存储中，供output页面使用
-            localStorage.setItem(`pptResult_${sessionId}`, JSON.stringify({
-              ...data.result,
-              template: this.selectedTemplate // 传递选中的模板
-            }))
-            
-            // 跳转到output页面
-            this.router.push({
-              path: '/ppt/output',
-              query: { session_id: sessionId }
-            })
-          } else if (data.status === 'failed') {
-            // 任务失败
-            clearInterval(this.pollInterval)
-            this.isSaving = false
-            alert('PPT生成失败: ' + (data.error || '未知错误'))
-          }
-          // 如果是processing状态，继续轮询
-        } catch (error) {
-          console.error('检查任务状态失败:', error)
-          clearInterval(this.pollInterval)
-          this.isSaving = false
-          alert('检查任务状态失败: ' + error.message)
-        }
-      }, 2000) // 每2秒检查一次
-    }
-  },
-  
-  beforeUnmount() {
-    // 清除轮询
-    if (this.pollInterval) {
-      clearInterval(this.pollInterval)
     }
   }
 }
@@ -234,6 +225,19 @@ export default {
   margin-bottom: 20px;
   flex-wrap: wrap;
   gap: 15px;
+}
+
+.header-controls {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.model-select {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
 }
 
 .editor-header h2 {

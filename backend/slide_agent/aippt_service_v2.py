@@ -28,12 +28,12 @@ class AIPPTTaskManager:
         }
         return task_id
 
-    def start_processing(self, task_id: str, markdown_content: str):
+    def start_processing(self, task_id: str, markdown_content: str, model: str = "qwen3-235b"):
         """启动异步处理任务"""
         def _process():
             try:
-                # 使用实际的PPT生成逻辑
-                result = self._generate_ppt(markdown_content)
+                # 使用实际的PPT生成逻辑，传递模型参数
+                result = self._generate_ppt(markdown_content, model)
                 self._tasks[task_id] = {
                     "status": "completed",
                     "result": result,
@@ -54,7 +54,7 @@ class AIPPTTaskManager:
         """获取任务状态"""
         return self._tasks.get(task_id)
 
-    def _generate_ppt(self, markdown: str) -> dict:
+    def _generate_ppt(self, markdown: str, model: str = "qwen3-235b") -> dict:
         """实际的PPT生成逻辑"""
         try:
             # 解析Markdown为幻灯片结构
@@ -63,16 +63,18 @@ class AIPPTTaskManager:
             # 将结构化数据转换为PPTist格式
             slides = self._convert_to_pptist_format(slide_structure)
             
-            # 返回结果
+            # 返回结果，与前端PPT页面使用相同的数据结构
             return {
                 "slides": slides,
-                "markdown": markdown
+                "markdown": markdown,
+                "model": model  # 返回使用的模型信息
             }
         except Exception as e:
             logger.error(f"PPT generation failed: {str(e)}")
             raise
     
     def _convert_to_pptist_format(self, slide_structure: list) -> list:
+        """将结构化数据转换为PPTist格式，与前端PPT页面使用相同的格式"""
         """将结构化数据转换为PPTist格式"""
         import uuid
         

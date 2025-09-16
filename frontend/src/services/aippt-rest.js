@@ -2,9 +2,10 @@ import axios from 'axios'
 
 const API_BASE = '/api/tools'
 
-export const generateAIPPT = async (markdown) => {
+export const generateAIPPT = async (markdown, model = 'qwen3-235b') => {
   const response = await axios.post(`${API_BASE}/aippt_rest`, {
-    markdown
+    markdown,
+    model
   })
   return {
     task_id: response.data.task_id,
@@ -13,9 +14,7 @@ export const generateAIPPT = async (markdown) => {
 }
 
 export const getAIPPTResult = async (taskId) => {
-  const response = await axios.get(`${API_BASE}/aippt_result`, {
-    params: { task_id: taskId }
-  })
+  const response = await axios.get(`${API_BASE}/aippt_rest_result/${taskId}`)
   return response.data
 }
 

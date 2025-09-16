@@ -392,6 +392,7 @@ export default () => {
 
   /**
    * AI PPT生成器（生成器函数）
+   * 与PPT页面使用相同的逻辑渲染PPT
    * @param templateSlides 模板幻灯片
    * @param _AISlides AI生成的幻灯片数据
    * @param imgs 图片资源
