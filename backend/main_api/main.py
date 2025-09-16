@@ -1,28 +1,34 @@
-import asyncio
 import json
-import re
 import os
+import re
 import sys
+import uuid
+
 import dotenv
 from fastapi import FastAPI, UploadFile, File, Form
-from pydantic import BaseModel
-from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
-import uuid
-from a2a.client import A2AClient
-from a2a.types import (
-    MessageSendParams,
-    SendMessageRequest,
-    SendStreamingMessageRequest
-)
-from outline_client import A2AOutlineClientWrapper
-from content_client import A2AContentClientWrapper
+from fastapi.responses import StreamingResponse, JSONResponse
+from pydantic import BaseModel
+
 # 添加当前目录到Python路径
 dotenv.load_dotenv()
 
-# 动态导入aippt_rest_router
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+try:
+    from content_client import A2AContentClientWrapper
+    from outline_client import A2AOutlineClientWrapper
+except ImportError:
+    # 如果导入失败，尝试其他方式
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    sys.path.append(current_dir)
+    from content_client import A2AContentClientWrapper
+    from outline_client import A2AOutlineClientWrapper
+
+# 从新的工具文件中导入stream_agent_response
+from stream_utils import stream_agent_response
+
+# 导入aippt_rest路由器
 try:
     from tools.aippt_rest import router as aippt_rest_router
 except ImportError:
@@ -65,46 +71,6 @@ class SectionItem(BaseModel):
     id: str
     title: str
     fields: list
-
-async def stream_agent_response(prompt: str):
-    """A generator that yields parts of the agent response."""
-    try:
-        outline_wrapper = A2AOutlineClientWrapper(session_id=uuid.uuid4().hex, agent_url=OUTLINE_API)
-        has_data = False
-        
-        async for chunk_data in outline_wrapper.generate(prompt):
-            print(f"生成大纲输出的chunk_data: {chunk_data}")
-            
-            # 检查chunk_data是否为空或无效
-            if not chunk_data or not isinstance(chunk_data, dict):
-                continue
-                
-            if chunk_data.get("type") == "text" and chunk_data.get("text"):
-                has_data = True
-                yield chunk_data["text"]
-            elif chunk_data.get("type") == "error" and chunk_data.get("text"):
-                # 直接传递错误信息
-                has_data = True
-                yield chunk_data["text"]
-        
-        # 如果整个流式传输过程中没有任何数据
-        if not has_data:
-            yield json.dumps({
-                "status": "error", 
-                "message": "AI服务未返回有效数据，请检查服务状态",
-                "code": "NO_DATA_RECEIVED"
-            })
-            
-    except Exception as e:
-        # 全局异常处理 - 确保任何异常都有返回
-        error_msg = f"大纲生成失败: {str(e)}"
-        print(f"stream_agent_response异常: {error_msg}")
-        yield json.dumps({
-            "status": "error", 
-            "message": error_msg,
-            "code": "OUTLINE_GENERATION_FAILED"
-        })
-
 
 @app.post("/tools/aippt_outline")
 async def aippt_outline(request: AipptRequest):

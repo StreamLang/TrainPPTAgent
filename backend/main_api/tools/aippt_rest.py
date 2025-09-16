@@ -5,19 +5,17 @@ import sys
 import os
 
 # 添加项目根目录到Python路径
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+# 获取当前文件的目录
+current_dir = os.path.dirname(os.path.abspath(__file__))
+# 获取main_api目录
+main_api_dir = os.path.dirname(current_dir)
+# 获取backend目录
+backend_dir = os.path.dirname(main_api_dir)
+# 添加backend目录到Python路径
+sys.path.insert(0, backend_dir)
 
 # 直接导入PPT生成服务
-try:
-    from slide_agent.aippt_service_v2 import task_manager
-except ImportError:
-    try:
-        from backend.slide_agent.aippt_service_v2 import task_manager
-    except ImportError:
-        # 最后尝试直接导入
-        slide_agent_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "slide_agent")
-        sys.path.append(slide_agent_path)
-        from aippt_service_v2 import task_manager
+from slide_agent.aippt_service_v2 import task_manager
 
 router = APIRouter()
 logger = logging.getLogger(__name__)

@@ -6,10 +6,16 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, Optional
 
 # 添加项目根目录到Python路径
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# 获取当前文件的目录
+current_dir = os.path.dirname(os.path.abspath(__file__))
+# 获取backend目录
+backend_dir = os.path.dirname(current_dir)
+# 添加backend目录到Python路径
+sys.path.insert(0, backend_dir)
 
-from slide_agent.utils import parse_markdown_to_slides
-from slide_agent.advanced_parser import parse_markdown_to_slides_advanced
+# 从新的工具文件中导入stream_agent_response
+from main_api.stream_utils import stream_agent_response
+from slide_agent.slide_agent.advanced_parser import parse_markdown_to_slides_advanced
 
 logger = logging.getLogger(__name__)
 
@@ -64,8 +70,9 @@ class AIPPTTaskManager:
                 # 使用高级解析器，直接从Markdown中提取详细内容说明
                 slide_structure = parse_markdown_to_slides_advanced(markdown)
             else:
-                # 使用原始解析器
-                slide_structure = parse_markdown_to_slides(markdown)
+                slide_structure = []
+                # async for md_chunk in stream_agent_response(markdown):
+                #     slide_structure.append(md_chunk)
 
             # 直接返回幻灯片结构，与前端PPT页面使用相同的数据结构
             return slide_structure
