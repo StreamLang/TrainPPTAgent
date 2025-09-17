@@ -38,11 +38,6 @@ export const getImageSize = (src: string): Promise<ImageSize> => {
  * @param base64 Base64编码的图片数据
  */
 export const getImageSizeFromBase64 = (base64: string): Promise<ImageSize> => {
-  // 验证是否为有效的Base64图片数据URL
-  if (!/^data:image\/[a-zA-Z0-9]+;base64,/.test(base64)) {
-    return Promise.reject(new Error('Invalid base64 image data. It should start with "data:image/[type];base64,"'));
-  }
-
   return new Promise((resolve, reject) => {
     const img = document.createElement('img')
     img.src = base64

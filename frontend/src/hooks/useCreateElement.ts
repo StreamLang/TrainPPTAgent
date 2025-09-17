@@ -2,7 +2,7 @@ import { storeToRefs } from 'pinia'
 import { nanoid } from 'nanoid'
 import { useMainStore, useSlidesStore } from '@/store'
 import { getImageSize, getImageSizeFromBase64 } from '@/utils/image'
-import type { PPTLineElement, PPTElement, TableCell, TableCellStyle, PPTShapeElement, ChartType } from '@/types/slides'
+import type { PPTLineElement, PPTElement, TableCell, TableCellStyle, PPTShapeElement, ChartType, ChartData } from '@/types/slides'
 import { type ShapePoolItem, SHAPE_PATH_FORMULAS } from '@/configs/shapes'
 import type { LinePoolItem } from '@/configs/lines'
 import { CHART_DEFAULT_DATA } from '@/configs/chart'
@@ -115,9 +115,10 @@ export default () => {
   
   /**
    * 创建图表元素
-   * @param chartType 图表类型
+   * @param type 图表类型
+   * @param data 图表数据，可选，如果不提供则使用默认数据
    */
-  const createChartElement = (type: ChartType) => {
+  const createChartElement = (type: ChartType, data?: ChartData) => {
     createElement({
       type: 'chart',
       id: nanoid(10),
@@ -129,7 +130,7 @@ export default () => {
       rotate: 0,
       themeColors: theme.value.themeColors,
       textColor: theme.value.fontColor,
-      data: CHART_DEFAULT_DATA[type],
+      data: data || CHART_DEFAULT_DATA[type],
     })
   }
   
