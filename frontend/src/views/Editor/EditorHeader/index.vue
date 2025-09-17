@@ -70,6 +70,9 @@
     </div>
 
     <div class="right">
+        <div class="menu-item" v-tooltip="'导入表格数据'" @click="importTableData()">
+          <IconPicture class="icon" /> 插入表格数据
+        </div>
       <div class="group-menu-item">
         <div class="menu-item" v-tooltip="'幻灯片放映（F5）'" @click="enterScreening()">
           <IconPpt class="icon" />
@@ -108,6 +111,7 @@ import { useMainStore, useSlidesStore } from '@/store'
 import useScreening from '@/hooks/useScreening'
 import useImport from '@/hooks/useImport'
 import useSlideHandler from '@/hooks/useSlideHandler'
+import useCreateTableFromData from '@/hooks/useCreateTableFromData'
 import type { DialogForExportTypes } from '@/types/export'
 
 import HotkeyDoc from './HotkeyDoc.vue'
@@ -126,6 +130,7 @@ const { title } = storeToRefs(slidesStore)
 const { enterScreening, enterScreeningFromStart } = useScreening()
 const { importSpecificFile, importPPTXFile, importJSON, exporting } = useImport()
 const { resetSlides } = useSlideHandler()
+const { parseCSVData, createTableFromData } = useCreateTableFromData()
 
 const mainMenuVisible = ref(false)
 const hotkeyDrawerVisible = ref(false)
@@ -156,6 +161,23 @@ const setDialogForExport = (type: DialogForExportTypes) => {
 
 const openMarkupPanel = () => {
   mainStore.setMarkupPanelState(true)
+}
+
+// 导入表格数据功能
+const importTableData = () => {
+  // 模拟CSV数据（可以替换为实际的接口数据）
+  const csvData = `姓名,年龄,城市,职业
+张三,25,北京,工程师
+李四,30,上海,设计师
+王五,28,广州,产品经理
+赵六,35,深圳,项目经理
+钱七,22,杭州,实习生`
+
+  // 解析CSV数据
+  const parsedData = parseCSVData(csvData)
+  
+  // 创建表格元素
+  createTableFromData(parsedData)
 }
 </script>
 
