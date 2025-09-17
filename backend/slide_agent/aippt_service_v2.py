@@ -4,6 +4,7 @@ import sys
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, Optional
+import asyncio
 
 # 添加项目根目录到Python路径
 # 获取当前文件的目录
@@ -14,7 +15,8 @@ backend_dir = os.path.dirname(current_dir)
 sys.path.insert(0, backend_dir)
 
 # 从新的工具文件中导入stream_agent_response
-from main_api.stream_utils import stream_agent_response
+# from main_api.stream_utils import stream_content_response
+from main_api.stream_utils import stream_content_response
 from slide_agent.slide_agent.advanced_parser import parse_markdown_to_slides_advanced
 
 logger = logging.getLogger(__name__)
@@ -70,15 +72,31 @@ class AIPPTTaskManager:
                 # 使用高级解析器，直接从Markdown中提取详细内容说明
                 slide_structure = parse_markdown_to_slides_advanced(markdown)
             else:
-                slide_structure = []
-                # async for md_chunk in stream_agent_response(markdown):
-                #     slide_structure.append(md_chunk)
+                # 使用流式处理来生成PPT内容
+                slide_structure = self._stream_generate_ppt(markdown)
 
             # 直接返回幻灯片结构，与前端PPT页面使用相同的数据结构
             return slide_structure
         except Exception as e:
             logger.error(f"PPT generation failed: {str(e)}")
             raise
+
+    def _stream_generate_ppt(self, markdown: str) -> list:
+        """通过流式处理生成PPT内容"""
+        # 收集流式响应数据
+        collected_data = []
+        
+        # 创建一个包装函数来运行异步生成器
+        async def collect_stream_data():
+            async for chunk in stream_content_response(markdown):
+                # print(f'{chunk}')
+                collected_data.append(chunk)
+        
+        # 使用asyncio.run()运行异步函数
+        # 这样可以在同步上下文中执行异步代码
+        asyncio.run(collect_stream_data())
+        
+        return collected_data
 
 
 # 全局单例
