@@ -1,7 +1,7 @@
 import { storeToRefs } from 'pinia'
 import { nanoid } from 'nanoid'
 import { useMainStore, useSlidesStore } from '@/store'
-import { getImageSize } from '@/utils/image'
+import { getImageSize, getImageSizeFromBase64 } from '@/utils/image'
 import type { PPTLineElement, PPTElement, TableCell, TableCellStyle, PPTShapeElement, ChartType } from '@/types/slides'
 import { type ShapePoolItem, SHAPE_PATH_FORMULAS } from '@/configs/shapes'
 import type { LinePoolItem } from '@/configs/lines'
@@ -72,6 +72,37 @@ export default () => {
         type: 'image',
         id: nanoid(10),
         src,
+        width,
+        height,
+        left: (viewportSize.value - width) / 2,
+        top: (viewportSize.value * viewportRatio.value - height) / 2,
+        fixedRatio: true,
+        rotate: 0,
+      })
+    })
+  }
+
+  /**
+   * 从Base64编码创建图片元素
+   * @param base64 Base64编码的图片数据，应包含数据URL前缀（如 data:image/png;base64,）
+   */
+  const createImageElementFromBase64 = (base64: string) => {
+    getImageSizeFromBase64(base64).then(({ width, height }) => {
+      const scale = height / width
+  
+      if (scale < viewportRatio.value && width > viewportSize.value) {
+        width = viewportSize.value
+        height = width * scale
+      }
+      else if (height > viewportSize.value * viewportRatio.value) {
+        height = viewportSize.value * viewportRatio.value
+        width = height / scale
+      }
+
+      createElement({
+        type: 'image',
+        id: nanoid(10),
+        src: base64,
         width,
         height,
         left: (viewportSize.value - width) / 2,
@@ -313,6 +344,7 @@ export default () => {
 
   return {
     createImageElement,
+    createImageElementFromBase64,
     createChartElement,
     createTableElement,
     createTextElement,

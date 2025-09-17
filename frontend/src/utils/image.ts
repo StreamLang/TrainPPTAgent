@@ -34,6 +34,62 @@ export const getImageSize = (src: string): Promise<ImageSize> => {
 }
 
 /**
+ * 获取Base64图片的原始宽高
+ * @param base64 Base64编码的图片数据
+ */
+export const getImageSizeFromBase64 = (base64: string): Promise<ImageSize> => {
+  // 验证是否为有效的Base64图片数据URL
+  if (!/^data:image\/[a-zA-Z0-9]+;base64,/.test(base64)) {
+    return Promise.reject(new Error('Invalid base64 image data. It should start with "data:image/[type];base64,"'));
+  }
+
+  return new Promise((resolve, reject) => {
+    const img = document.createElement('img')
+    img.src = base64
+    img.style.opacity = '0'
+    document.body.appendChild(img)
+
+    img.onload = () => {
+      const imgWidth = img.clientWidth
+      const imgHeight = img.clientHeight
+    
+      img.onload = null
+      img.onerror = null
+
+      document.body.removeChild(img)
+
+      resolve({ width: imgWidth, height: imgHeight })
+    }
+
+    img.onerror = () => {
+      img.onload = null
+      img.onerror = null
+      document.body.removeChild(img);
+      reject(new Error('Failed to load image from base64 data'));
+    }
+  })
+}
+
+/**
+ * 从Base64数据中提取图片格式
+ * @param base64 Base64编码的图片数据
+ * @returns 图片格式（如 'png', 'jpeg', 'gif' 等）
+ */
+export const getImageFormatFromBase64 = (base64: string): string | null => {
+  const match = base64.match(/^data:image\/([a-zA-Z0-9]+);base64,/);
+  return match ? match[1] : null;
+}
+
+/**
+ * 验证Base64图片数据URL是否有效
+ * @param base64 Base64编码的图片数据
+ * @returns 是否为有效的Base64图片数据URL
+ */
+export const isValidBase64Image = (base64: string): boolean => {
+  return /^data:image\/[a-zA-Z0-9]+;base64,/.test(base64);
+}
+
+/**
  * 读取图片文件的dataURL
  * @param file 图片文件
  */
